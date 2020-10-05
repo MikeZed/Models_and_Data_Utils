@@ -1,8 +1,9 @@
 
-from tensorflow.python.keras.utils import Sequence
+from tensorflow.keras.utils import Sequence
 from image_utils import prepare_image
 import numpy as np
 import random
+
 
 
 class DataSequence(Sequence):

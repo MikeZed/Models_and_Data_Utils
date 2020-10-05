@@ -6,17 +6,22 @@ import numpy as np
 import cv2
 
 
-#################################   Functions that Prepare the Images for the Model ####################################
+########################################################################################################################
+#                                          Functions that Prepare the Images for the Model                             #
+########################################################################################################################
 
-def prepare_image(image_path, img_res, img_mode, img_channels=1):
+def prepare_image(image_path, img_res, img_mode, img_channels=1, invert_colors=False, save_img=False, save_path=None):
     # loads and prepares the image at image_path for the model
 
     channels = 0 if img_channels == 1 else 1
 
     image = cv2.imread(image_path, channels)
 
-    image = cv2.bitwise_not(image)
-    image = image / 255.0
+    if invert_colors:
+        image = cv2.bitwise_not(image)
+
+    if not save_img:
+        image = image / 255.0
 
     image = np.array(image, dtype="float")
 
@@ -51,6 +56,29 @@ def prepare_image(image_path, img_res, img_mode, img_channels=1):
     else:
         images = [image]
 
+    if img_mode == 'crop':
+        # get middle crop o the image, size : img_res X img_res
+
+        shape_x, shape_y = image.shape[0:2]
+        crop_region_corner = ((shape_x - img_res) // 2, (shape_y - img_res) // 2)
+
+        image = crop_image(image, win_size=img_res, crop_corner=crop_region_corner)
+        images = [image]
+
+    if save_img:
+        # get img name and type
+        img_name = image_path.split('\\')[-1]
+        img_name, img_type = img_name.split('.')
+
+        # get image save path
+        if len(images) == 1:
+            save_path = ["{}\\{}.{}".format(save_path, img_name, img_type)]
+        else:
+            save_path = ["{}\\{}{}.{}".format(save_path, img_name, i, img_type) for i in range(len(images))]
+
+        # save image
+        for i in range(len(images)):
+            cv2.imwrite(save_path[i], images[i])
 
     return images
 
@@ -127,7 +155,15 @@ def get_edges(image, shape=(100,100), tran_len = 1, depth=1000, con_range=(0.015
     return [left]
 
 
-#################################     Using Model for Correcting Images    #############################################
+def crop_image(image, win_size = 90, crop_corner = (0,0)):
+    # crop_corner is the left upper corner of the crop
+    crop_img = image[crop_corner[1]: crop_corner[1] + win_size, crop_corner[0]: crop_corner[0] + win_size]
+    return crop_img
+
+
+########################################################################################################################
+#                                         Using Model for Correcting Images                                            #
+########################################################################################################################
 
 def correct_image_using_model(model, image_path):
     # Receives a path to an image and then estimates the skew of the image according to the model,

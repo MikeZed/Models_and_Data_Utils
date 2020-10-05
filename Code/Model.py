@@ -6,6 +6,7 @@ from Data import Data
 
 import matplotlib.pyplot as plt
 from tensorflow import keras
+import sklearn.metrics 
 import hickle
 import os
 
@@ -14,10 +15,9 @@ class Model:
     # used for making the whole process of building, training and evaluating of the model more organized
     # also can save and load the the model with its training history
 
-    def __init__(self, use_generator=False, img_channels=1, img_res=100, img_mode='pad'):
-        self.use_generator = use_generator
+    def __init__(self, img_settings=None):
 
-        self.img_settings = {'img_res': img_res, 'img_channels': img_channels, 'img_mode': img_mode}
+        self.img_settings = img_settings
 
         self.epochs = []
         self.batch_size = []
@@ -34,7 +34,8 @@ class Model:
 
         opt = self.model.optimizer.get_config()['name']
         lr = self.model.optimizer.get_config()['learning_rate']
-        loss = self.model.loss
+        loss = self.model.loss if type(self.model.loss) is str \
+                else str(self.model.loss).split(' ')[1]
 
         epochs_and_batch_size = list(zip(self.epochs, self.batch_size))
 
@@ -62,21 +63,22 @@ class Model:
 
     ################################################################################################################
 
-    def construct(self, optimizer, loss, struct, epochs, batch_size, url, data_path, data_file, split=(80, 10, 10),
-                  save_path=None, metrics=None):
+    def construct(self, optimizer, loss, struct, epochs, batch_size, data_dict, split=(80, 10, 10), layers_to_train=3,
+                  save_path=None, metrics=None, use_generator=False):
         # builds model, loads data, trains and evaluates model
 
         # ---------------------------------------
         #            build model
         # ---------------------------------------
-
-        self.build_model(optimizer, loss, struct, metrics)
+        if self.model is None:
+            self.build_model(optimizer, loss, struct, layers_to_train, metrics)
 
         # ---------------------------------------
         #    load data, train and evaluate
         # ---------------------------------------
 
-        self.continue_training(url=url, data_path=data_path, data_file=data_file, epochs=epochs, batch_size=batch_size, split=split)
+        self.continue_training(data_dict=data_dict, epochs=epochs, batch_size=batch_size,
+                               split=split, use_generator=use_generator)
 
         # ---------------------------------------
         #            save model
@@ -86,49 +88,34 @@ class Model:
             self.save_model(save_path)
             self.update_info(save_path)
 
-        # ---------------------------------------
-        #            plot results
-        # ---------------------------------------
-
-        self.plot_results(save_path=save_path)
-
     # ------------------------------------------------------------------------------------------------------------ #
 
-    def continue_training(self, url, data_path, data_file, epochs=100, batch_size=32, split=(80, 20, 0)):
-        # loads the data, trains the model and evaluates it
-
-        # ---------------------------------------
-        #               load data
-        # ---------------------------------------
-
-        data_loader = Data(use_generator=self.use_generator, split=split, img_settings=self.img_settings,
-                           url=url, data_path=data_path, data_file=data_file)
-
-        data_loader.load_data()
+    def continue_training(self, data_dict, epochs=100, batch_size=32, split=(80, 20, 0), use_generator=False):
+        # gets data dictionary, trains the model and evaluates it
 
         self.epochs.append(epochs)
         self.batch_size.append(batch_size)
-
-        data_dict = data_loader.prepare_data(self.batch_size[-1])
 
         # ---------------------------------------
         #        continue training the model
         # ---------------------------------------
 
-        self.train_model(train=data_dict['train'], val=data_dict['val'])
+        self.train_model(train=data_dict['train'], val=data_dict['val'], use_generator=use_generator)
 
-        self.model.summary()
+        # self.model.summary()
 
         # ---------------------------------------
         #            evaluating
         # ---------------------------------------
 
-        if not split[2] == 0:
-            self.evaluate_model(data_dict['test'])
+        if 'test' in data_dict: #if not split[2] == 0:
+            self.evaluate_model(data_dict['test'], use_generator=use_generator)
 
-    ###########################################   Building   #######################################################
+    ###################################################################################################################
+    #                                             Building                                                            #
+    ###################################################################################################################
 
-    def build_model(self, optimizer, loss, struct, metrics=None):
+    def build_model(self, optimizer, loss, struct, layers_to_train=3, metrics=None):
         # builds the model either layer by layer or by using transfer learning
 
         # ---------------------------------------
@@ -137,7 +124,7 @@ class Model:
 
         print("Building model...")
 
-        model = self.build_layers(struct)
+        model = self.build_layers(struct, layers_to_train=layers_to_train)
 
         # ---------------------------------------
         #           compile model
@@ -147,6 +134,7 @@ class Model:
             metrics = []
 
         model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
+
         model.summary()
 
         self.model = model
@@ -159,15 +147,7 @@ class Model:
 
         using_transfer = False
         base_layer = model_struct[0]
-
-        # ----------------------------------------------
-        # correct channels if using transfer learning
-        # ----------------------------------------------
-
-        if not base_layer['name'] == 'In':
-            if not self.img_settings['img_channels'] == 3:
-                print('using transfer learning -> number of channels was changed to 3')
-                self.img_settings['img_channels'] = 3
+        layers = [None] * len(model_struct)
 
         # -----------------------------------------------------------
         # build base layer - regular input or use pre-trained model
@@ -177,10 +157,11 @@ class Model:
 
         input_shape = (img_res, img_res, channels)
 
-        if base_layer['name'] == 'In':
+        if base_layer['name'] == 'input':
             # building a regular model
             x = keras.layers.Input(shape=input_shape)
-            In = x
+            model_input = x
+            layers[0] = x
 
         else:
             # using transfer learning
@@ -199,8 +180,8 @@ class Model:
             else:
                 raise NameError('Unknown Base!')
 
-            In = x.input
-            x = x.output
+            model_input = x.input  # fix it num of layers
+            layers[0] = x.output
 
             using_transfer = True
 
@@ -208,38 +189,42 @@ class Model:
         # add remaining layers
         # ---------------------
 
-        for layer in model_struct[1:]:
+        for i, layer in enumerate(model_struct[1:len(model_struct)-1], 1):
+
+            connected_to = layer.get('connected_to', i-1)
+
             if layer['name'] == 'Dense':
-                x = keras.layers.Dense(layer['size'])(x)
+                layers[i] = keras.layers.Dense(layer['size'])(layers[connected_to])
 
             elif layer['name'] == 'Activation':
-                x = keras.layers.Activation(layer['type'])(x)
+                layers[i] = keras.layers.Activation(layer['type'])(layers[connected_to])
 
             elif layer['name'] == 'Conv2D':
-                x = keras.layers.Conv2D(layer['filters'], layer['kernel_size'], padding='same')(x)
+                layers[i] = keras.layers.Conv2D(layer['filters'], layer['kernel_size'], padding='same')(layers[connected_to])
 
             elif layer['name'] == 'MaxPooling2D':
-                x = keras.layers.MaxPooling2D(layer['size'])(x)
+                layers[i] = keras.layers.MaxPooling2D(layer['size'])(layers[connected_to])
 
             elif layer['name'] == 'AveragePooling2D':
-                x = keras.layers.AveragePooling2D(layer['size'])(x)
+                layers[i] = keras.layers.AveragePooling2D(layer['size'])(layers[connected_to])
 
             elif layer['name'] == 'BN':
-                x = keras.layers.BatchNormalization()(x)
+                layers[i] = keras.layers.BatchNormalization()(layers[connected_to])
 
             elif layer['name'] == 'DO':
-                x = keras.layers.Dropout(layer['rate'])(x)
+                layers[i] = keras.layers.Dropout(layer['rate'])(layers[connected_to])
 
             elif layer['name'] == 'Flatten':
-                x = keras.layers.Flatten()(x)
+                layers[i] = keras.layers.Flatten()(layers[connected_to])
 
             elif layer['name'] == 'Lambda':
-                x = keras.layers.Lambda(layer['func'])(x)
+                layers[i] = keras.layers.Lambda(layer['func'])(layers[connected_to])
 
             else:
                 raise NameError('Unknown Layer!')
 
-        model = keras.models.Model(inputs=In, outputs=x)
+        outputs = [layers[i] for i in (model_struct[-1])['outputs']]
+        model = keras.models.Model(inputs=model_input, outputs=outputs)
 
         # ---------------------------------------
         # freeze layers if using transfer model
@@ -256,9 +241,11 @@ class Model:
 
         return model
 
-    ###########################################   Training   #######################################################
+    ###################################################################################################################
+    #                                             Training                                                            #
+    ###################################################################################################################
 
-    def train_model(self, train, val, epochs=None, batch_size=None):
+    def train_model(self, train, val, epochs=None, batch_size=None, use_generator=False):
         # trains the model and updates its training history
         # recommended to use only through continue_training, because the epochs and batch_size are determined there
         print("Training model...")
@@ -276,8 +263,8 @@ class Model:
 
         settings = {'epochs': epochs, 'shuffle': True, 'verbose': 1, 'initial_epoch': initial_epoch}
 
-        if self.use_generator:
-            history = self.model.fit_generator(generator=train, validation_data=val, **settings)
+        if use_generator:
+            history = self.model.fit(train, validation_data=val, **settings)
 
         else:
             history = self.model.fit(train[0], train[1], validation_data=val, batch_size=batch_size, **settings)
@@ -292,34 +279,59 @@ class Model:
 
         print("Model is ready!\n")
 
-    ###########################################   Evaluating   #####################################################
+    ###################################################################################################################
+    #                                             Evaluating                                                          #
+    ###################################################################################################################
 
-    def evaluate_model(self, test):
+    def evaluate_model(self, test, use_generator=False):
         # evaluates the model
 
-        if self.use_generator:
-            eval = self.model.evaluate_generator(test)
+        if use_generator:
+            evaluation = self.model.evaluate(test)
         else:
-            eval = self.model.evaluate(test[0], test[1])
+            evaluation = self.model.evaluate(test[0], test[1])
 
-        eval = list(zip(self.model.metrics_names, eval))
+        evaluation = list(zip(self.model.metrics_names, evaluation))
 
-        print("Test dataset evaluation: {}".format(eval))
+        print("Test dataset evaluation: {}".format(evaluation))
 
         self.evaluation = eval
 
-    #########################################   Saving and Loading   ###############################################
+
+    ###################################################################################################################
+    #                                             Predicting                                                          # 
+    ###################################################################################################################
+    
+    def predict(self, data):
+        # predicts labels by using the model 
+        
+        if isinstance(data, dict):
+        
+            predictions={}
+            
+            for key, value in data.items(): 
+                predictions[key]=self.model.predict(value)
+            
+            return predictions
+        
+        else:
+            return self.model.predict(data)
+            
+
+    ###################################################################################################################
+    #                                             Saving and Loading                                                  #
+    ###################################################################################################################
 
     def save_model(self, save_path):
         # saves the model and its history and settings
 
-        os.mkdir(save_path)
+        os.makedirs(save_path, exist_ok=True)
 
-        self.model.save('{}\\model.hdf5'.format(save_path))
+        self.model.save('{}/model.hdf5'.format(save_path))
 
         self_list = [self.epochs, self.batch_size, self.history, self.img_settings]
 
-        hickle.dump(self_list, "{}\\model_data.hkl".format(save_path))
+        hickle.dump(self_list, "{}/model_data.hkl".format(save_path))
 
     @staticmethod
     def load_model(load_path):
@@ -327,10 +339,10 @@ class Model:
 
         new_model = Model()
 
-        new_model.model = keras.models.load_model(load_path + "\\model.hdf5")
+        new_model.model = keras.models.load_model(load_path + "/model.hdf5")
 
         new_model.epochs, new_model.batch_size, new_model.history, new_model.img_settings = \
-            hickle.load(load_path + "\\model_data.hkl")
+            hickle.load(load_path + "/model_data.hkl")
 
         new_model.status = 'ready'
         new_model.use_generator = False
@@ -342,42 +354,142 @@ class Model:
 
         info = str(self)
 
-        with open(save_path + "\\model_info.txt", "w") as f:
+        with open(save_path + "/model_info.txt", "w") as f:
             f.write(info)
 
-    ##########################################   Plotting Results   ################################################
+    ###################################################################################################################
+    #                                            Plotting Results                                                     #
+    ###################################################################################################################
 
-    def plot_results(self, save_path=None):
+    def plot_results(self,  plots_in_row=3, save_path=None):
         # plots the training and validation process
 
         epochs_range = range(sum(self.epochs))
 
         plt.figure(figsize=(11, 8))
 
+        plt.subplots_adjust(hspace=0.5)
+
         metrics_num = len(self.model.metrics_names)
 
-        for i, metric in enumerate(self.model.metrics_names, 1):
-            plt.subplot(1, metrics_num, i)
+        outputs_num = len(self.model.output_shape)
 
-            metric_values = self.history[metric]
-            val_metric_values = self.history['val_' + metric]
+        plots_num = (metrics_num-1)//outputs_num + 1
 
-            if metric == 'loss':
-                metric = ' '.join(self.model.loss.split('_')) + ' (loss)'
-            else:
-                metric = ' '.join(metric.split('_'))
+        metrics = self.model.metrics_names
 
-            metric = metric.title()
+        metrics = [[metrics[0]]] + [metrics[1 + n:1 + n + outputs_num] for n in range(0, len(metrics) - 1, outputs_num)]
 
-            plt.plot(epochs_range, metric_values, label='Training ' + metric)
-            plt.plot(epochs_range, val_metric_values, label='Validation ' + metric)
-            plt.title('Training and Validation ' + metric)
+        loss_func = self.model.loss if type(self.model.loss) is str \
+            else str(self.model.loss).split(' ')[1]
+
+        if plots_num == 4:
+            plots_in_row = 4
+
+        if plots_num < plots_in_row:
+            plots_in_row = plots_num
+
+        num_plot_rows = plots_num // plots_in_row + (plots_num % plots_in_row > 0)
+
+        for i, metric in enumerate(metrics, 1):
+            plt.subplot(num_plot_rows, plots_in_row, i)
+
+            for m in metric:
+                metric_values = self.history[m]
+                val_metric_values = self.history['val_' + m]
+
+                if m == 'loss':
+                    m = ' '.join(loss_func.split('_')) + ' (loss)'
+
+                else:
+                    m = ' '.join(m.split('_'))
+
+                m = m.title()
+                m = ' '.join(m.split('_')[:2])
+                plt.plot(epochs_range, metric_values, label='Train ' + m)
+                plt.plot(epochs_range, val_metric_values, label='Val ' + m)
+
+            plt_title = ' '.join(loss_func.split('_')) + ' (loss)' if metric[0] == 'loss' \
+                else ' '.join(metric[0].split('_')[2:])
+
+            plt.title('Train and Val ' + plt_title)
             plt.grid(True)
             plt.legend()
 
         # plt.subplots_adjust(top=0.75)
 
         if save_path is not None:
-            plt.savefig(save_path + "\\Training and Validation Metrics.png")
+            plt.savefig(save_path + "/Training and Validation Metrics.png")
 
         plt.show()
+
+
+    def plot_roc(self, predictions, labels, plots_in_row=3, save_path=None): # TODO 
+    
+        plt.figure(figsize=(11, 8))
+
+        plt.subplots_adjust(hspace=0.35, wspace=0.35)
+        
+        keys = ["train", "val", "test"]
+        
+        outputs_num = len(self.model.output_shape) 
+        
+        num_plot_rows = outputs_num // plots_in_row + (outputs_num % plots_in_row > 0)
+        
+        print(outputs_num, num_plot_rows, plots_in_row)
+        
+        out_labels, out_predictions = {}, {} 
+        
+        for key in keys:
+            out_labels[key] = list(zip(*labels[key]))
+            out_predictions[key] = list(zip(*predictions[key]))
+            
+        for i in range(1, outputs_num + 1): 
+            plt.subplot(num_plot_rows, plots_in_row, i)
+            
+            i-=1
+            for key in keys: 
+                if key not in predictions: 
+                     continue
+            
+                fp, tp, _ = sklearn.metrics.roc_curve(out_labels[key][i], predictions[key][i])
+                
+                auc = sklearn.metrics.auc(fp, tp)
+                
+                plt.plot(fp, tp, label="{}, AUC: {:.3f}".format(key,auc))
+                
+            plt.xlabel('False positives')
+            plt.ylabel('True positives')
+            plt.xlim([-0.005, 1.005])
+            plt.ylim([-0.005, 1.005])
+            plt.grid(True)
+            plt.legend()
+
+        
+            plt.title("Output {} ROC".format(i))
+                
+       
+                
+            """     
+             for i, out_predictions in enumerate(predictions[key+"_predictions"])
+                  
+                  fp, tp, _ = sklearn.metrics.roc_curve(labels[key+"_labels"][i], out_predictions) 
+                        
+        for output in outputs
+        
+            train_fp, train_tp, _ = sklearn.metrics.roc_curve(train_labels, train_predictions)
+            train_fp, train_tp, _ = sklearn.metrics.roc_curve(train_labels, train_predictions)
+            train_fp, train_tp, _ = sklearn.metrics.roc_curve(train_labels, train_predictions)
+            
+        
+           """  
+        
+        if save_path is not None:
+            plt.savefig(save_path + "/ROC Curves.png")
+
+        plt.show()
+        
+        
+        
+        
+        
