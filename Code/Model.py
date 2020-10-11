@@ -431,8 +431,7 @@ class Model:
 
     def evaluate_classifier(self, predictions, labels, mode='roc', plots_in_row=3, save_path=None): # TODO 
         # evaluates the classifier by plotting the ROC or Precision Recall Curve
-
-    
+        
         plt.figure(figsize=(11, 8))
 
         plt.subplots_adjust(hspace=0.35, wspace=0.35)
