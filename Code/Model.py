@@ -63,7 +63,7 @@ class Model:
 
     ################################################################################################################
 
-    def construct(self, optimizer, loss, struct, epochs, batch_size, data_dict, split=(80, 10, 10), layers_to_train=3,
+    def construct(self, optimizer, loss, struct, epochs, batch_size, data_dict, layers_to_train=3,
                   save_path=None, metrics=None, use_generator=False):
         # builds model, loads data, trains and evaluates model
 
@@ -78,7 +78,7 @@ class Model:
         # ---------------------------------------
 
         self.continue_training(data_dict=data_dict, epochs=epochs, batch_size=batch_size,
-                               split=split, use_generator=use_generator)
+                               use_generator=use_generator)
 
         # ---------------------------------------
         #            save model
@@ -90,7 +90,7 @@ class Model:
 
     # ------------------------------------------------------------------------------------------------------------ #
 
-    def continue_training(self, data_dict, epochs=100, batch_size=32, split=(80, 20, 0), use_generator=False):
+    def continue_training(self, data_dict, epochs=100, batch_size=32, use_generator=False):
         # gets data dictionary, trains the model and evaluates it
 
         self.epochs.append(epochs)
@@ -232,7 +232,10 @@ class Model:
 
         if using_transfer:
             layers_num = len(model.layers)
-
+            
+            if layers_to_train == 'all':
+                layers_to_train = layers_num
+                
             for layer in model.layers[:layers_num - layers_to_train]:
                 layer.trainable = False
 
@@ -310,9 +313,10 @@ class Model:
             predictions={}
             
             for key, value in data.items(): 
-                predictions[key]=self.model.predict(value)
-            
+                predictions[key]=list(zip(*self.model.predict(value)))
+                
             return predictions
+            
         
         else:
             return self.model.predict(data)
@@ -361,7 +365,7 @@ class Model:
     #                                            Plotting Results                                                     #
     ###################################################################################################################
 
-    def plot_results(self,  plots_in_row=3, save_path=None):
+    def plot_train_val_history(self,  plots_in_row=3, save_path=None):
         # plots the training and validation process
 
         epochs_range = range(sum(self.epochs))
@@ -371,11 +375,12 @@ class Model:
         plt.subplots_adjust(hspace=0.5)
 
         metrics_num = len(self.model.metrics_names)
-
-        outputs_num = len(self.model.output_shape)
+        
+        output_shape = self.model.output_shape if isinstance(self.model.output_shape,list) else [self.model.output_shape]
+        outputs_num = len(output_shape)
 
         plots_num = (metrics_num-1)//outputs_num + 1
-
+          
         metrics = self.model.metrics_names
 
         metrics = [[metrics[0]]] + [metrics[1 + n:1 + n + outputs_num] for n in range(0, len(metrics) - 1, outputs_num)]
@@ -424,7 +429,9 @@ class Model:
         plt.show()
 
 
-    def plot_roc(self, predictions, labels, plots_in_row=3, save_path=None): # TODO 
+    def evaluate_classifier(self, predictions, labels, mode='roc', plots_in_row=3, save_path=None): # TODO 
+        # evaluates the classifier by plotting the ROC or Precision Recall Curve
+
     
         plt.figure(figsize=(11, 8))
 
@@ -432,41 +439,71 @@ class Model:
         
         keys = ["train", "val", "test"]
         
-        outputs_num = len(self.model.output_shape) 
+        output_shape = self.model.output_shape if isinstance(self.model.output_shape,list) else [self.model.output_shape]
+        outputs_num = len(output_shape)
         
+        if outputs_num < plots_in_row:
+            plots_in_row = outputs_num
+            
         num_plot_rows = outputs_num // plots_in_row + (outputs_num % plots_in_row > 0)
         
-        print(outputs_num, num_plot_rows, plots_in_row)
         
+        print(outputs_num, num_plot_rows, plots_in_row)
+   
+        if mode == 'roc':
+            # plot ROC 
+            evaulate_func=sklearn.metrics.roc_curve
+            score_func=sklearn.metrics.roc_auc_score
+            score_label = "AUC"
+            xlabel='False positives'
+            ylabel= 'True positives'
+            plt_title="ROC"
+            
+        else:
+            # plot Precision Recall
+            evaulate_func=sklearn.metrics.precision_recall_curve
+            score_func=sklearn.metrics.average_precision_score
+            score_label = "AP"
+            xlabel='Recall'
+            ylabel= 'Precision'
+            plt_title="PR"
+            
+            
         out_labels, out_predictions = {}, {} 
         
         for key in keys:
+            if key not in predictions or key not in labels: 
+                continue
+                
             out_labels[key] = list(zip(*labels[key]))
             out_predictions[key] = list(zip(*predictions[key]))
             
+            if outputs_num == 1:
+                out_labels[key] = [[i[0] for i in out_labels[key]]]
+                out_predictions[key] = [[i[0] for i in out_predictions[key]]]
+        
         for i in range(1, outputs_num + 1): 
             plt.subplot(num_plot_rows, plots_in_row, i)
             
             i-=1
             for key in keys: 
-                if key not in predictions: 
-                     continue
-            
-                fp, tp, _ = sklearn.metrics.roc_curve(out_labels[key][i], predictions[key][i])
+                if key not in predictions or key not in labels: 
+                    continue 
+                x, y, _ = evaulate_func(out_labels[key][i], out_predictions[key][i])
                 
-                auc = sklearn.metrics.auc(fp, tp)
+                score = score_func(out_labels[key][i], out_predictions[key][i])
                 
-                plt.plot(fp, tp, label="{}, AUC: {:.3f}".format(key,auc))
+                plt.plot(x, y, label="{}, {}: {:.3f}".format(key, score_label, score))
                 
-            plt.xlabel('False positives')
-            plt.ylabel('True positives')
+            plt.xlabel(xlabel,fontsize=14)
+            plt.ylabel(ylabel,fontsize=14)
             plt.xlim([-0.005, 1.005])
             plt.ylim([-0.005, 1.005])
             plt.grid(True)
             plt.legend()
 
         
-            plt.title("Output {} ROC".format(i))
+            plt.title("Output {} {}".format(i, plt_title),fontsize=18)
                 
        
                 
@@ -485,7 +522,7 @@ class Model:
            """  
         
         if save_path is not None:
-            plt.savefig(save_path + "/ROC Curves.png")
+            plt.savefig("{}/{} Curves.png".format(save_path,plt_title))
 
         plt.show()
         

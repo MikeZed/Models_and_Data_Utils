@@ -67,14 +67,14 @@ def prepare_image(image_path, img_res, img_mode, img_channels=1, invert_colors=F
 
     if save_img:
         # get img name and type
-        img_name = image_path.split('\\')[-1]
+        img_name = image_path.split('/')[-1]
         img_name, img_type = img_name.split('.')
 
         # get image save path
         if len(images) == 1:
-            save_path = ["{}\\{}.{}".format(save_path, img_name, img_type)]
+            save_path = ["{}/{}.{}".format(save_path, img_name, img_type)]
         else:
-            save_path = ["{}\\{}{}.{}".format(save_path, img_name, i, img_type) for i in range(len(images))]
+            save_path = ["{}/{}{}.{}".format(save_path, img_name, i, img_type) for i in range(len(images))]
 
         # save image
         for i in range(len(images)):

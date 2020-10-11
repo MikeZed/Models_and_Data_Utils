@@ -159,7 +159,7 @@ class Data:
         y_col.remove("img_name")
 
         class_mode = "multi_output" if len(y_col) > 1 else "raw"
-
+        print(class_mode)
         target_size = (self.img_settings["img_res"] ,self.img_settings["img_res"])
         color_mode = "grayscale" if self.img_settings["img_channels"] == 1 else "rgb"
 
@@ -198,12 +198,18 @@ class Data:
         print("Data is ready!\n") 
         
         if get_labels: 
-            labels = {"train": train_df.drop(columns=["img_name"]).values.tolist(),
-                      "val":   val_df.drop(columns=["img_name"]).values.tolist()}
-                      
+            outputs_num = len(self.df.columns)-1
+            
+            labels={"train":train_df.drop(columns=["img_name"]).values.tolist(),
+                    "val":val_df.drop(columns=["img_name"]).values.tolist()}                         
+          
             if train_val_num < total_num: 
                 labels["test"] = test_df.drop(columns=["img_name"]).values.tolist()  
                 
+            if outputs_num == 1:
+                for key,value in labels.items():
+                    labels[key]=list(zip(*value))
+                   
             return data_dict, labels
             
         else: 
@@ -230,8 +236,14 @@ class Data:
 
     def save_images(self): # TODO
         # saves all the images (prepared for the model)
-
+        
+        os.makedirs(self.preprocessing_path, exist_ok=True) 
+        
         for img_name in self.df['img_name']:
             # save image after pre-processing
             img_path = "{}/{}".format(self.data_path, img_name)
-            prepare_image(img_path, **self.img_settings, save_img=True, save_path=self.preprocessing_path)
+            prepare_image(img_path, **self.img_settings, save_img=True, save_path=self.preprocessing_path) 
+            
+            
+            
+            

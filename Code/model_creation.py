@@ -9,20 +9,13 @@ from Model import Model
 import pandas as pd
 import os
 
-from Model_and_Data_Configuration import *
-
 YES = ['y', 'Y', '1', ' ']
 
-MODEL_DICT = {'optimizer': OPTIMIZER, 'loss': LOSS_FUNC, 'metrics': METRICS,
-              'struct': MODEL_STRUCT if not USE_TRANSFER else TRANSFER_MODEL, 'layers_to_train': LAYERS_TO_TRAIN}
-
-TRAINING_DICT = {'epochs': EPOCHS, 'batch_size': BATCH_SIZE, 'use_generator': USE_GENERATOR}
-# FOLDERS_DICT = {'models': MODELS_DIR, 'graphs': GRAPHS_DIR}
-
-IMG_SETTINGS = {'img_res': IMAGE_RES, 'img_channels': IMG_CHANNELS, 'img_mode': IMG_MODE}
-
-
-def create_model():
+def create_model(models_dir, model_file, model_num=0, model_dict=None,save_model =True,use_generator=True, img_settings=None,
+                 url=None, data_path=None, data_file=None,preprocessing_path=None, training_dict=None,  
+                 train_val_test_split=(80,10,10), plots_in_row=3,  save_df=False, rearrange_df=False,save_images=False, 
+                 rearrange_dataframe_func=None):
+                 
     # checks if there is an existing model,
     # can create a new one by downloading and loading the data, creating a new model, training it and then
     # plots the results and saves them
@@ -33,37 +26,40 @@ def create_model():
 
     # print(MODEL_DICT)
 
-    path = "{}/{}".format(MODELS_DIR, MODEL_FILE)
-    path += "" if MODEL_NUM == 0 else "_Num{}".format(MODEL_NUM)
+    path = "{}/{}".format(models_dir, model_file)
+    path += "" if model_num == 0 else "_Num{}".format(model_num)
 
-    use_existing = prep_and_check_existing(path)
+    use_existing = prep_and_check_existing(path=path, models_dir=models_dir, model_file=model_file)
 
     # -------------------------------------------------
     #     load existing model or create a new one
     # -------------------------------------------------
 
+    settings = {'model': None, 'model_dict': model_dict, 'save_model': save_model, 'img_settings': img_settings, 
+                'training_dict': training_dict, 'train_val_test_split': train_val_test_split, 'use_generator': use_generator,
+                'url': url, 'data_path': data_path, 'data_file': data_file, 'preprocessing_path': preprocessing_path,
+                'rearrange_dataframe_func': rearrange_dataframe_func, 'save_df': save_df, 'rearrange_df': rearrange_df,
+                'save_images': save_images,'save_path': path, 'plots_in_row': plots_in_row}
+                 
     if not use_existing:
         # build and train new model
 
-        if not SAVE_MODEL:
-            path = None
-
-        model = Model(img_settings=IMG_SETTINGS)
-
-        load_data_and_construct_model(model=model, url=URL, data_path=DATA_PATH, data_file=DATA_FILE, path=path,
-                                      plots_in_row=PLOTS_IN_ROW)
+        model = Model(img_settings=img_settings)
+        settings['model'] = model
+        
+        load_data_and_construct_model(**settings)
 
     else:
         # use existing model
 
         model = Model.load_model(path)
-
+        settings['model'] = model 
+        
         continue_training = input("Continue training model? (Y/[N]): ")
         continue_training = True if continue_training in YES else False
 
         if continue_training:
-            load_data_and_construct_model(model=model, url=URL, data_path=DATA_PATH, data_file=DATA_FILE, path=path,
-                                          plots_in_row=PLOTS_IN_ROW)
+            load_data_and_construct_model(**settings)
 
         print(model.model.metrics_names)
 
@@ -71,40 +67,47 @@ def create_model():
 
 # ------------------------------------------------------------------------------------------------------------------- #
 
-def load_data_and_construct_model(model, url, data_path, data_file, path, plots_in_row):
+def load_data_and_construct_model(model, model_dict,save_model, training_dict, train_val_test_split, img_settings, 
+                                  rearrange_dataframe_func, use_generator, url, data_path, data_file, preprocessing_path,
+                                  save_df, rearrange_df, save_images, save_path, plots_in_row):
+
+    if not save_model:
+        save_path = None
+        
     # load data
-    data_loader = Data(use_generator=USE_GENERATOR, split=TRAIN_VAL_TEST_SPLIT, img_settings=IMG_SETTINGS,
-                       url=url, data_path=data_path, data_file=data_file, rearrange_dataframe=rearrange_dataframe,
-                       preprocessing_path=PREPROCESSING_FOLDER)
+    data_loader = Data(use_generator=use_generator, split=train_val_test_split, img_settings=img_settings,
+                       url=url, data_path=data_path, data_file=data_file, rearrange_dataframe=rearrange_dataframe_func,
+                       preprocessing_path=preprocessing_path)
 
     # download data and get dataframe
-    data_loader.load_data(save_df_to_file=SAVE_DF, rearrange_df=REARRANGE_DF)
+    data_loader.load_data(save_df_to_file=save_df, rearrange_df=rearrange_df)
 
-    if SAVE_IMAGES:
+    if save_images:
         data_loader.save_images()
-
+  
     # load the data to the memory / create data generators
-    data_dict = data_loader.prepare_data(batch_size=TRAINING_DICT['batch_size'])
+    data_dict = data_loader.prepare_data(batch_size=training_dict['batch_size'])
 
     # create and train model
-    model.construct(**MODEL_DICT, **TRAINING_DICT, data_dict=data_dict, split=TRAIN_VAL_TEST_SPLIT, save_path=path)
+    model.construct(**model_dict, **training_dict, use_generator=use_generator, data_dict=data_dict, save_path=save_path)
 
     # plot results
-    model.plot_results(save_path=path, plots_in_row=plots_in_row)
+    model.plot_train_val_history(save_path=save_path, plots_in_row=plots_in_row)
     
-    data_dict, labels = data_loader.prepare_data(get_labels=True, batch_size=TRAINING_DICT['batch_size'])
+    data_dict, labels = data_loader.prepare_data(get_labels=True, batch_size=training_dict['batch_size'])
     
     predictions = model.predict(data_dict)
     
-    model.plot_roc(predictions=predictions, labels=labels, save_path=path, plots_in_row=plots_in_row)
+    model.evaluate_classifier(predictions=predictions, labels=labels, mode='roc', save_path=save_path, plots_in_row=plots_in_row)
+    model.evaluate_classifier(predictions=predictions, labels=labels, mode='pr',  save_path=save_path, plots_in_row=plots_in_row)
 
 
-def prep_and_check_existing(path):
+def prep_and_check_existing(path, models_dir, model_file):
     # check if there is already an existing model at path
     use_existing = False
 
-    if not os.path.exists(MODELS_DIR):
-        os.mkdir(MODELS_DIR)
+    if not os.path.exists(models_dir):
+        os.mkdir(models_dir)
 
     # if not os.path.exists(GRAPHS_DIR):
     #     os.mkdir(GRAPHS_DIR)
@@ -115,55 +118,14 @@ def prep_and_check_existing(path):
 
         if not use_existing:
             i = 1
-            while os.path.exists('{}/{}_Num{}'.format(MODELS_DIR, MODEL_FILE, i)):
+            while os.path.exists('{}/{}_Num{}'.format(models_dir, model_file, i)):
                 i += 1
 
-            os.rename(path, '{}/{}_Num{}'.format(MODELS_DIR, MODEL_FILE, i))
+            os.rename(path, '{}/{}_Num{}'.format(models_dir, model_file, i))
 
     return use_existing
 
 
-def rearrange_dataframe(df): 
-    """ 
-    readrranges the dataset's dataframe, the output is a dataframe of the following structure:
-    
-      img_name (feature)    out0 (label)    out1 (label) ...
-           img.png              1               2        ...
-             .                  .               .
-             .                  .               .
-             .                  .               .
-             
-    Note: this function is defined outside of the Data Class because, most likely, different functions would 
-          fit different datasets.         
-    """
-    # --------------------------------------------------------------------------
-    pd.options.mode.chained_assignment = None
-
-  #  df = df.loc[~(df['good_pic0'] * df['good_pic1'] == 0)]  # drop bad images
-  #  df = df.loc[~(df['head0'] == 'N')]  # drop bad images
-  #  df.dropna(inplace=True)
-
-    # df=df[df["head0"] != "N"]
-
-  #  df.drop(['good_pic0', 'good_pic1'], axis=1, inplace=True)
-
-    df.loc[:, 'Identifier'] = df['Identifier'].str.replace('C', 'F')
-    df_FC = df['Identifier'].str.split('F', expand=True)
-
-    df.loc[:, 'Identifier'] = [f"D{d}_F{f:03d}_C{c:02d}" for d, f, c in
-                               zip(df['Donor'], df_FC[1].astype(int), df_FC[2].astype(int))]
-
-    img_name = df['Identifier'] + ".png"
-
-    df.insert(0, 'img_name', img_name)
-
-    df.drop(['Donor', 'Identifier'], axis=1, inplace=True)
-
-    pd.options.mode.chained_assignment = 'warn'
-    # --------------------------------------------------------------------------
-    df.reset_index(drop=True, inplace=True)
-
-    return df
 
 
 
