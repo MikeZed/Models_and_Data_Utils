@@ -1,6 +1,6 @@
 # Models and Data Utils
 Previously was part of the Skew_Detection project.
-As a result of Deep Learning models creation and training being a repeated task of Machine Learning Projects,
+As a result of - Deep Learning models creation and training - being a repeated task of Machine Learning Projects,
 this small repository was created for:
 - Downloading the data set 
 - Basic data preproccesing
@@ -17,9 +17,13 @@ A brief of each file purpose:
          
 - Model - used to create, train and test models. can also load and save trained models, can plot training process, 
           and supports data generators and transfer learning 
+
+- Model_and_Data_Configuration - holds all the parameters of the model such as the loss function, metrics, optimizer, structure. 
+                                 also contains the necessary paths to access the data.  
+                                 
+- model_creation - receives all the nessary information from Model_and_Data_Configuration.
+                   loads the dataset by using the Data Class and feeds it to a new model according to Model_and_Data_Configuration. 
           
-          
- Note - this project was tested only with the Skew_Detection project, may require additional tweaks in order to work with other data. 
                 
                  
 
