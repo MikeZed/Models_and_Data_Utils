@@ -144,106 +144,150 @@ class Model:
 
     def build_layers(self, model_struct, layers_to_train=3):
         # builds the model layer by layer
-
-        using_transfer = False
-        base_layer = model_struct[0]
+       
         layers = [None] * len(model_struct)
-
-        # -----------------------------------------------------------
-        # build base layer - regular input or use pre-trained model
-        # -----------------------------------------------------------
-        img_res = self.img_settings['img_res']
-        channels = self.img_settings['img_channels']
-
-        input_shape = (img_res, img_res, channels)
-
-        if base_layer['name'] == 'input':
-            # building a regular model
-            x = keras.layers.Input(shape=input_shape)
-            model_input = x
-            layers[0] = x
-
-        else:
-            # using transfer learning
-
-            settings = {'weights': 'imagenet', 'include_top': False, 'input_shape': input_shape}
-
-            if base_layer['name'] == 'VGG16':
-                x = keras.applications.VGG16(**settings)
-
-            elif base_layer['name'] == 'VGG19':
-                x = keras.applications.VGG19(**settings)
-
-            elif base_layer['name'] == 'ResNet50':
-                x = keras.applications.ResNet50(**settings)
-
-            else:
-                raise NameError('Unknown Base!')
-
-            model_input = x.input  # fix it num of layers
-            layers[0] = x.output
-
-            using_transfer = True
-
-        # ---------------------
-        # add remaining layers
-        # ---------------------
-
-        for i, layer in enumerate(model_struct[1:len(model_struct)-1], 1):
-
-            connected_to = layer.get('connected_to', i-1)
-
-            if layer['name'] == 'Dense':
-                layers[i] = keras.layers.Dense(layer['size'])(layers[connected_to])
-
-            elif layer['name'] == 'Activation':
-                layers[i] = keras.layers.Activation(layer['type'])(layers[connected_to])
-
-            elif layer['name'] == 'Conv2D':
-                layers[i] = keras.layers.Conv2D(layer['filters'], layer['kernel_size'], padding='same')(layers[connected_to])
-
-            elif layer['name'] == 'MaxPooling2D':
-                layers[i] = keras.layers.MaxPooling2D(layer['size'])(layers[connected_to])
-
-            elif layer['name'] == 'AveragePooling2D':
-                layers[i] = keras.layers.AveragePooling2D(layer['size'])(layers[connected_to])
-
-            elif layer['name'] == 'BN':
-                layers[i] = keras.layers.BatchNormalization()(layers[connected_to])
-
-            elif layer['name'] == 'DO':
-                layers[i] = keras.layers.Dropout(layer['rate'])(layers[connected_to])
-
-            elif layer['name'] == 'Flatten':
-                layers[i] = keras.layers.Flatten()(layers[connected_to])
-
-            elif layer['name'] == 'Lambda':
-                layers[i] = keras.layers.Lambda(layer['func'])(layers[connected_to])
-
-            else:
-                raise NameError('Unknown Layer!')
-
-        outputs = [layers[i] for i in (model_struct[-1])['outputs']]
-        model = keras.models.Model(inputs=model_input, outputs=outputs)
-
-        # ---------------------------------------
-        # freeze layers if using transfer model
-        # ---------------------------------------
-
-        if using_transfer:
-            layers_num = len(model.layers)
+        
+        layers_labels = {}  
+        inputs=[]
+        outputs=[]
+        
+        i = -1
+        
+        for layer_description in model_struct[0:len(model_struct)]:
+        
+            i+=1
             
-            if layers_to_train == 'all':
-                layers_to_train = layers_num
+            # ---------------------------------------
+            #        determine previous layer
+            # ---------------------------------------
+            
+            if not (layer_description['name'] == 'input' or layer_description['name'] == 'Transfer'): 
+                # if not input layer, get previous layer
                 
-            for layer in model.layers[:layers_num - layers_to_train]:
-                layer.trainable = False
+               prev_layer = layer_description.get('connected_to', None) # get label if exists
+                
+               if prev_layer is None: 
+                   # get layer to connect to according to label, 
+                   prev_layer = layers[i-1]
+               else:   
+                   # if there is no label take the previous layer 
+                   prev_layer = layers_labels[prev_layer]             
+                                                                        
 
-            for layer in model.layers[layers_num - layers_to_train:]:
-                layer.trainable = True
+            layer_amount = 1 # if using transfer model --> the amount of layers added would be the depth of the model, 
+                             #                             otherwise we add only 1 layer
+               
+            # ---------------------------------------
+            #     create and connect current layer 
+            # --------------------------------------- 
+            
+            if layer_description['name'] == 'Dense':
+                layers[i] = keras.layers.Dense(layer_description['size'])(prev_layer)
+
+            elif layer_description['name'] == 'Activation':
+                layers[i] = keras.layers.Activation(layer_description['type'])(prev_layer)
+
+            elif layer_description['name'] == 'Conv2D':
+                layers[i] = keras.layers.Conv2D(layer_description['filters'], layer_description['kernel_size'], padding='same')(prev_layer)
+
+            elif layer_description['name'] == 'MaxPooling2D':
+                layers[i] = keras.layers.MaxPooling2D(layer_description['size'])(prev_layer)
+
+            elif layer_description['name'] == 'AveragePooling2D':
+                layers[i] = keras.layers.AveragePooling2D(layer_description['size'])(prev_layer)
+
+            elif layer_description['name'] == 'BN':
+                layers[i] = keras.layers.BatchNormalization()(prev_layer)
+
+            elif layer_description['name'] == 'DO':
+                layers[i] = keras.layers.Dropout(layer_description['rate'])(prev_layer)
+
+            elif layer_description['name'] == 'Flatten':
+                layers[i] = keras.layers.Flatten()(prev_layer)                   
+                
+            elif layer_description['name'] == 'Lambda':
+                layers[i] = keras.layers.Lambda(layer_description['func'])(prev_layer)
+                
+            elif layer_description['name'] == 'input':
+                # building a regular model
+                layers[i] = keras.layers.Input(shape=layer_description['input_shape'])
+            
+            elif layer_description['name'] == 'Transfer':
+                # using transfer learning          
+                layer_amount = self.add_transfer_model(layers, layer_description, i)
+                i+=layer_amount-1    
+                
+            else:
+                raise NameError('Unknown Layer!')     
+                
+            # -----------------------------------------
+            #   add layer to labels dict if labelled, 
+            #   add layer to input / output list if IO 
+            # ----------------------------------------- 
+               
+            if 'label' in layer_description:
+                layers_labels[layer_description['label']] = layers[i] # label points to output of a layers
+            
+            if 'IO' not in layer_description: 
+                continue 
+                
+            if layer_description['IO'] == 'input': 
+                inputs.append(layers[i+1-layer_amount])    
+            
+            if layer_description['IO'] == 'output': 
+                outputs.append(layers[i]) 
+                
+        model = keras.models.Model(inputs=inputs, outputs=outputs)
 
         return model
+        
+              
+    def add_transfer_model(self, layers, transfer_dict, index): 
+    
+        settings = {'weights': 'imagenet', 'include_top': False, 'input_shape': transfer_dict['input_shape']}
+        
+        # ---------------------------------------
+        #      determine and load model
+        # ---------------------------------------
+        
+        if transfer_dict['type'] == 'VGG16':
+            x = keras.applications.VGG16(**settings)
 
+        elif transfer_dict['type'] == 'VGG19':
+            x = keras.applications.VGG19(**settings)
+    
+        elif transfer_dict['type'] == 'ResNet50':
+            x = keras.applications.ResNet50(**settings)
+
+        else:
+            raise NameError('Unknown Transfer Model!')
+        
+        # -----------------------------------------------
+        #    add transfer model's layers to list and
+        #    freeze layers according to layers_to_train
+        # -----------------------------------------------
+        
+        layer_amount = len(x.layers)
+        layers += [None] * layer_amount
+
+        layers_to_train = layer_amount if transfer_dict['layers_to_train'] == 'all' else transfer_dict['layers_to_train']
+                
+        layers[index] = x.input 
+        index+=1
+                
+        for j, layer in enumerate(x.layers[1:], 1): 
+        
+            layers[index] = layer 
+            index+=1
+            
+            if j+1 <= layer_amount-layers_to_train: 
+                layer.trainable=False
+                               
+        layers[index-1] = x.output
+        
+        return layer_amount
+                                                     
+                                                              
     ###################################################################################################################
     #                                             Training                                                            #
     ###################################################################################################################
@@ -431,7 +475,7 @@ class Model:
 
     def evaluate_classifier(self, predictions, labels, mode='roc', plots_in_row=3, save_path=None): # TODO 
         # evaluates the classifier by plotting the ROC or Precision Recall Curve
-        
+    
         plt.figure(figsize=(11, 8))
 
         plt.subplots_adjust(hspace=0.35, wspace=0.35)

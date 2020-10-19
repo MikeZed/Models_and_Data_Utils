@@ -46,8 +46,8 @@ EPOCHS = 100
 
 
 # -- transfer learning  --
-LAYERS_TO_TRAIN = 15 #'all'
-USE_TRANSFER = True 
+LAYERS_TO_TRAIN = 0 #'all'
+USE_TRANSFER = True  
 
 
 # -- image settings --
@@ -76,7 +76,7 @@ if LOSS_FUNC in METRICS:
 
 MODEL_STRUCT = [
 
-    {'name': 'input'},
+    {'name': 'input', 'input_shape': (IMAGE_RES, IMAGE_RES, IMG_CHANNELS), 'IO': 'input'},
 
     {'name': 'Conv2D', 'filters': 32, 'kernel_size': (5, 5)},
     {'name': 'Conv2D', 'filters': 32, 'kernel_size': (3, 3)},
@@ -86,49 +86,48 @@ MODEL_STRUCT = [
     {'name': 'Conv2D', 'filters': 64, 'kernel_size': (2, 2)},
     {'name': 'MaxPooling2D', 'size': (2, 2)},
 
-    {'name': 'Flatten'},
+    {'name': 'Flatten', 'label': 'flat'},
     
     {'name': 'Dense', 'size': 64},
     {'name': 'Activation', 'type': 'relu'},
     {'name': 'BN'},
     {'name': 'Dense', 'size': 1},
-    {'name': 'Activation', 'type': 'sigmoid'},
-    {'name': 'Outputs', 'outputs': (12,)},
+    {'name': 'Activation', 'type': 'sigmoid', 'IO': 'output'},
+
+
+    {'name': 'DO', 'rate': 0.1, 'connected_to': 'flat'},
+    {'name': 'Dense', 'size': 64},
+    {'name': 'Activation', 'type': 'relu'},
+    {'name': 'BN'},
+    {'name': 'Dense', 'size': 1},
+    {'name': 'Activation', 'type': 'sigmoid', 'IO': 'output'},
+
+    {'name': 'DO', 'rate': 0.1, 'connected_to': 'flat'},
+    {'name': 'Dense', 'size': 64},
+    {'name': 'Activation', 'type': 'relu'},
+    {'name': 'BN'},
+    {'name': 'Dense', 'size': 1},
+    {'name': 'Activation', 'type': 'sigmoid', 'IO': 'output'},
+
+    {'name': 'DO', 'rate': 0.1, 'connected_to': 'flat'},
+    {'name': 'Dense', 'size': 64},
+    {'name': 'Activation', 'type': 'relu'},
+    {'name': 'BN'},
+    {'name': 'Dense', 'size': 1},
+    {'name': 'Activation', 'type': 'sigmoid', 'IO': 'output'},
+
+    {'name': 'DO', 'rate': 0.1, 'connected_to': 'flat'},
+    {'name': 'Dense', 'size': 64},
+    {'name': 'Activation', 'type': 'relu'},
+    {'name': 'BN'},
+    {'name': 'Dense', 'size': 1},
+    {'name': 'Activation', 'type': 'sigmoid', 'IO': 'output'},
+
 ]
-"""
-    {'name': 'DO', 'rate': 0.1, 'connected_to': 7},
-    {'name': 'Dense', 'size': 64},
-    {'name': 'Activation', 'type': 'relu'},
-    {'name': 'BN'},
-    {'name': 'Dense', 'size': 1},
-    {'name': 'Activation', 'type': 'sigmoid'},
 
-    {'name': 'DO', 'rate': 0.1, 'connected_to': 7},
-    {'name': 'Dense', 'size': 64},
-    {'name': 'Activation', 'type': 'relu'},
-    {'name': 'BN'},
-    {'name': 'Dense', 'size': 1},
-    {'name': 'Activation', 'type': 'sigmoid'},
-
-    {'name': 'DO', 'rate': 0.1, 'connected_to': 7},
-    {'name': 'Dense', 'size': 64},
-    {'name': 'Activation', 'type': 'relu'},
-    {'name': 'BN'},
-    {'name': 'Dense', 'size': 1},
-    {'name': 'Activation', 'type': 'sigmoid'},
-
-    {'name': 'DO', 'rate': 0.1, 'connected_to': 7},
-    {'name': 'Dense', 'size': 64},
-    {'name': 'Activation', 'type': 'relu'},
-    {'name': 'BN'},
-    {'name': 'Dense', 'size': 1},
-    {'name': 'Activation', 'type': 'sigmoid'},
-
-   
-"""
 TRANSFER_MODEL = [
 
-    {'name': 'VGG19'},
+    {'name': 'Transfer', 'type': 'VGG19', 'layers_to_train': LAYERS_TO_TRAIN, 'input_shape': (IMAGE_RES, IMAGE_RES, IMG_CHANNELS), 'IO': 'input'},
 
     {'name': 'Flatten'},
     {'name': 'DO', 'rate': 0.1},
@@ -142,9 +141,8 @@ TRANSFER_MODEL = [
     {'name': 'Activation', 'type': 'relu'},
     
     {'name': 'Dense', 'size': 1},
-    {'name': 'Activation', 'type': 'sigmoid'},
+    {'name': 'Activation', 'type': 'sigmoid', 'IO': 'output'},
     
-    {'name': 'Outputs', 'outputs': (10,)},
 
 ]
 """
