@@ -12,32 +12,43 @@ import tensorflow as tf
 # -------------------------------------------------------------------------------------------------------------------- #
 
 URL = None
-DATA_PATH = r"/home/michael/Cell_Classification/Files/Large_Windows"
-PREPROCESSING_PATH = r"/home/michael/Cell_Classification/Files/Small_Windows_150"
-
-DATA_FILE = {'path':  r"/home/michael/Cell_Classification/Files/data (Corrected) rearranged.xlsx",
-             'skip_rows': None, 'relevant_cols': ["img_name", "head1"]}
-             #["img_name", "head0",	"head1", "head2", "mid0", "head3"]}
-             # relevent_cols = None --> keep all columns
-
-
-MODELS_DIR = '/home/michael/Cell_Classification/Model_Objects'
-
-# GRAPHS_DIR = 'Training Graphs'
-MODEL_FILE = 'VGG19 hinge'
-MODEL_NUM = 0
 
 SAVE_DF = False
 REARRANGE_DF = False
 SAVE_IMAGES = False 
 
+PREPROCESSING_PATH = r"/home/michael/Cell_Classification/Files/Large_Windows"
+
+PREPROCESSING_DATA_FILE = {'path':  r"/home/michael/Cell_Classification/Files/data (Corrected) rearranged.xlsx",
+             'skip_rows': None, 'relevant_cols': ["img_name", "head1"]}
+             #["img_name", "head0",	"head1", "head2", "mid0", "head3"]}
+             # relevent_cols = None --> keep all columns
+             
+# -- image settings --
+IMAGE_RES = 150    # setting this parameter for more the 200 is not recommended
+IMG_MODE = 'crop'  # options: 'pad', 'patch', 'edges' or 'crop'
+IMG_CHANNELS = 1
+
+      
+# ---------------------------------------------------------------------------------------- 
+# ---------------------------------------------------------------------------------------- 
+
+DATA_PATH = r"/home/michael/Cell_Classification/Files/Small_Windows_150"
+DATA_FILE =  {'path': r"/home/michael/Cell_Classification/Files/data (Corrected) rearranged.xlsx", 'relevant_cols': ["img_name", "head1"]}
+MODELS_DIR = '/home/michael/Cell_Classification/Model_Objects'
+
+# GRAPHS_DIR = 'Training Graphs'
+MODEL_FILE = 'VGG19 binary_crossentropy 1'
+
+# PATH = os.join(MODELS_DIR, MODEL_FILE)
+
+
 # -------------------------------------------------------------------------------------------------------------------- #
 #                                                MODEL PARAMETERS                                                      #
 # -------------------------------------------------------------------------------------------------------------------- #
 
-
-SAVE_MODEL = True   
-
+SAVE_MODEL = True    
+USE_TRANSFER = True 
 # -- training --
 TRAIN_VAL_TEST_SPLIT = (80, 20, 0)
 USE_GENERATOR = True
@@ -46,14 +57,9 @@ EPOCHS = 100
 
 
 # -- transfer learning  --
-LAYERS_TO_TRAIN = 0 #'all'
-USE_TRANSFER = True  
+LAYERS_TO_TRAIN = 'all' # options: int / 'all'
+USE_TRANSFER = False  
 
-
-# -- image settings --
-IMAGE_RES = 150  # setting this parameter for more the 200 is not recommended
-IMG_MODE = 'crop'  # 'pad', 'patch', 'edges' or 'crop'
-IMG_CHANNELS = 1
 
 if USE_TRANSFER:
     IMG_CHANNELS = 3
@@ -67,7 +73,7 @@ PLOTS_IN_ROW = 2
 
 LEARNING_RATE = 0.001
 OPTIMIZER = keras.optimizers.Adam(learning_rate=LEARNING_RATE)
-LOSS_FUNC = 'hinge'  # binary_crossentropy, hinge, mean_absolute_error, mean_squared_error 
+LOSS_FUNC = 'binary_crossentropy'  # binary_crossentropy, hinge, mean_absolute_error, mean_squared_error 
 METRICS = ['binary_accuracy']
 
 if LOSS_FUNC in METRICS:
@@ -88,35 +94,12 @@ MODEL_STRUCT = [
 
     {'name': 'Flatten', 'label': 'flat'},
     
-    {'name': 'Dense', 'size': 64},
+    {'name': 'Dense', 'size': 256},
     {'name': 'Activation', 'type': 'relu'},
     {'name': 'BN'},
-    {'name': 'Dense', 'size': 1},
-    {'name': 'Activation', 'type': 'sigmoid', 'IO': 'output'},
-
-
-    {'name': 'DO', 'rate': 0.1, 'connected_to': 'flat'},
-    {'name': 'Dense', 'size': 64},
+    {'name': 'Dense', 'size': 128},
     {'name': 'Activation', 'type': 'relu'},
     {'name': 'BN'},
-    {'name': 'Dense', 'size': 1},
-    {'name': 'Activation', 'type': 'sigmoid', 'IO': 'output'},
-
-    {'name': 'DO', 'rate': 0.1, 'connected_to': 'flat'},
-    {'name': 'Dense', 'size': 64},
-    {'name': 'Activation', 'type': 'relu'},
-    {'name': 'BN'},
-    {'name': 'Dense', 'size': 1},
-    {'name': 'Activation', 'type': 'sigmoid', 'IO': 'output'},
-
-    {'name': 'DO', 'rate': 0.1, 'connected_to': 'flat'},
-    {'name': 'Dense', 'size': 64},
-    {'name': 'Activation', 'type': 'relu'},
-    {'name': 'BN'},
-    {'name': 'Dense', 'size': 1},
-    {'name': 'Activation', 'type': 'sigmoid', 'IO': 'output'},
-
-    {'name': 'DO', 'rate': 0.1, 'connected_to': 'flat'},
     {'name': 'Dense', 'size': 64},
     {'name': 'Activation', 'type': 'relu'},
     {'name': 'BN'},

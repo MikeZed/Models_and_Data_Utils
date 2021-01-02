@@ -10,14 +10,15 @@ import sklearn.metrics
 import hickle
 import os
 
+#----------------------
+import numpy as np 
+#----------------------
 
 class Model:
     # used for making the whole process of building, training and evaluating of the model more organized
     # also can save and load the the model with its training history
 
-    def __init__(self, img_settings=None):
-
-        self.img_settings = img_settings
+    def __init__(self):
 
         self.epochs = []
         self.batch_size = []
@@ -39,17 +40,14 @@ class Model:
 
         epochs_and_batch_size = list(zip(self.epochs, self.batch_size))
 
-        img_res = self.img_settings['img_res']
-
         struct = []
         self.model.summary(print_fn=lambda x: struct.append(x))
         struct = '\n'.join(struct)
 
         model_info_dict = {'opt': opt, 'lr': lr, 'loss': loss, 'struct': struct,
-                           'epochs_and_batch_size': epochs_and_batch_size, 'img_res': img_res}
+                           'epochs_and_batch_size': epochs_and_batch_size}
 
         model_str = 'MODEL INFO: \n' \
-                    'Image resolution: {img_res}x{img_res}\n' \
                     'Model optimizer, learning rate: {opt}, {lr:.5f}\n' \
                     'Model loss function: {loss}\n' \
                     'Number of epochs and batch sizes: {epochs_and_batch_size}\n' \
@@ -219,7 +217,7 @@ class Model:
                 
             else:
                 raise NameError('Unknown Layer!')     
-                
+            
             # -----------------------------------------
             #   add layer to labels dict if labelled, 
             #   add layer to input / output list if IO 
@@ -351,7 +349,7 @@ class Model:
     
     def predict(self, data):
         # predicts labels by using the model 
-        
+        print(data)
         if isinstance(data, dict):
         
             predictions={}
@@ -361,7 +359,6 @@ class Model:
                 
             return predictions
             
-        
         else:
             return self.model.predict(data)
             
@@ -375,11 +372,11 @@ class Model:
 
         os.makedirs(save_path, exist_ok=True)
 
-        self.model.save('{}/model.hdf5'.format(save_path))
+        self.model.save(os.path.join(save_path, 'model.hdf5'))
 
-        self_list = [self.epochs, self.batch_size, self.history, self.img_settings]
+        self_list = [self.epochs, self.batch_size, self.history]
 
-        hickle.dump(self_list, "{}/model_data.hkl".format(save_path))
+        hickle.dump(self_list, os.path.join(save_path, "model_data.hkl"))
 
     @staticmethod
     def load_model(load_path):
@@ -387,10 +384,10 @@ class Model:
 
         new_model = Model()
 
-        new_model.model = keras.models.load_model(load_path + "/model.hdf5")
+        new_model.model = keras.models.load_model(os.path.join(load_path, "model.hdf5"))
 
-        new_model.epochs, new_model.batch_size, new_model.history, new_model.img_settings = \
-            hickle.load(load_path + "/model_data.hkl")
+        new_model.epochs, new_model.batch_size, new_model.history = \
+            hickle.load(os.path.join(load_path, "model_data.hkl"))
 
         new_model.status = 'ready'
         new_model.use_generator = False
@@ -468,14 +465,17 @@ class Model:
         # plt.subplots_adjust(top=0.75)
 
         if save_path is not None:
-            plt.savefig(save_path + "/Training and Validation Metrics.png")
+            plt.savefig(os.path.join(save_path, "Training and Validation Metrics.png"))
 
         plt.show()
 
 
     def evaluate_classifier(self, predictions, labels, mode='roc', plots_in_row=3, save_path=None): # TODO 
         # evaluates the classifier by plotting the ROC or Precision Recall Curve
-    
+       # print(predictions)
+        x=np.array(predictions['train'])
+        print(((x>0.5).astype(int)).tolist())
+        
         plt.figure(figsize=(11, 8))
 
         plt.subplots_adjust(hspace=0.35, wspace=0.35)
@@ -489,10 +489,9 @@ class Model:
             plots_in_row = outputs_num
             
         num_plot_rows = outputs_num // plots_in_row + (outputs_num % plots_in_row > 0)
-        
-        
+         
         print(outputs_num, num_plot_rows, plots_in_row)
-   
+         
         if mode == 'roc':
             # plot ROC 
             evaulate_func=sklearn.metrics.roc_curve
@@ -510,8 +509,7 @@ class Model:
             xlabel='Recall'
             ylabel= 'Precision'
             plt_title="PR"
-            
-            
+              
         out_labels, out_predictions = {}, {} 
         
         for key in keys:
@@ -524,7 +522,28 @@ class Model:
             if outputs_num == 1:
                 out_labels[key] = [[i[0] for i in out_labels[key]]]
                 out_predictions[key] = [[i[0] for i in out_predictions[key]]]
+                
         
+
+        """        
+        x, y, _ = evaulate_func(out_labels[keys[0]][0], out_predictions[keys[0]][0])
+             
+    
+        score = score_func(out_labels[keys[0]][0], out_predictions[keys[0]][0])
+        
+        plt.plot(x, y, label="{}, {}: {:.3f}".format(keys[0], score_label, score))
+        
+        plt.xlabel(xlabel,fontsize=14)
+        plt.ylabel(ylabel,fontsize=14)
+        plt.xlim([-0.005, 1.005])
+        plt.ylim([-0.005, 1.005])
+        plt.grid(True)
+        plt.legend()
+        
+        
+        
+        
+        """
         for i in range(1, outputs_num + 1): 
             plt.subplot(num_plot_rows, plots_in_row, i)
             
@@ -537,7 +556,7 @@ class Model:
                 score = score_func(out_labels[key][i], out_predictions[key][i])
                 
                 plt.plot(x, y, label="{}, {}: {:.3f}".format(key, score_label, score))
-                
+           
             plt.xlabel(xlabel,fontsize=14)
             plt.ylabel(ylabel,fontsize=14)
             plt.xlim([-0.005, 1.005])
@@ -549,8 +568,8 @@ class Model:
             plt.title("Output {} {}".format(i, plt_title),fontsize=18)
                 
        
-                
-            """     
+            
+        """     
              for i, out_predictions in enumerate(predictions[key+"_predictions"])
                   
                   fp, tp, _ = sklearn.metrics.roc_curve(labels[key+"_labels"][i], out_predictions) 
@@ -562,7 +581,7 @@ class Model:
             train_fp, train_tp, _ = sklearn.metrics.roc_curve(train_labels, train_predictions)
             
         
-           """  
+        """  
         
         if save_path is not None:
             plt.savefig("{}/{} Curves.png".format(save_path,plt_title))

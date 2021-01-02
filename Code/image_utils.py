@@ -10,7 +10,7 @@ import cv2
 #                                          Functions that Prepare the Images for the Model                             #
 ########################################################################################################################
 
-def prepare_image(image_path, img_res, img_mode, img_channels=1, invert_colors=False, save_img=False, save_path=None):
+def prepare_image(image_path, img_res, img_mode, img_channels=1, vertical_flip=False, horizontal_flip=False, invert_colors=False, save_img=False, save_path=None):
     # loads and prepares the image at image_path for the model
 
     channels = 0 if img_channels == 1 else 1
