@@ -1,10 +1,37 @@
-########################################################################################################################
-#                                                    TO-DO                                                             #
-# TODO add non-generator version support for multiple outputs in functions prepare_data, load_images_and_labels in Data
 
-########################################################################################################################
 
+
+"""
+                                                     TO-DO                                                             
+												  -----------
+			* add support for numeric and mixed data in DataSequence:
+					* img generator works 
+					* check numeric generator 
+					* check mixed data generator 
+									  
+			* take out get_labels part in load_data_generators to another function (add data split as property of Data)
+
+			* change config files to .ini files for multiple configs support 
+
+			* move evaluation to another class 
+
+			* rearrange model evaulation and data code  
+
+			* create dynamic informative model name 
+
+
+												Possible Additions
+											 -----------------------
+			* general data handling in DataSequence (multiple images, img name not in first column)
+
+"""
 import os
+
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # or any {'0', '1', '2'}
+
+
+
 from ModelManager import create_model
 from image_utils import correct_image_using_model
 

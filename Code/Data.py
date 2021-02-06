@@ -42,26 +42,26 @@ class Data:
         file_extension = self.data_file['path'].split('.')[-1]
 
         if file_extension == 'txt' or file_extension == 'csv':
-            self.df = pd.read_csv(self.data_file['path'], usecols=self.data_file['relevant_cols'])
+            self.df = pd.read_csv(self.data_file['path'])
 
         elif file_extension == 'xlsx':
-            self.df = pd.read_excel(self.data_file['path'], usecols=self.data_file['relevant_cols'])
+            self.df = pd.read_excel(self.data_file['path'])
 
 
-    def load_data(self, get_labels=False, batch_size=32, split=(80,10,10)):
+    def load_data(self, get_labels=False, batch_size=32, split=(80,10,10), mode='train'):
 
         print("Preparing data...")
         
         if self.use_generator:
-            data = self.load_data_generators(get_labels, batch_size, split)
+            data = self.load_data_generators(get_labels, batch_size, split, mode)
         else: 
-            data = self.load_data_to_memory(get_labels, batch_size, split)
+            data = self.load_data_to_memory(get_labels, batch_size, split, mode)
             
         print("Data is ready!\n") 
         return data
 
     # ------------------------------------------------------------------------------------------------------------------- #
-    def load_data_generators(self, get_labels=False, batch_size=32, split=(80, 10, 10)):
+    def load_data_generators(self, get_labels=False, batch_size=32, split=(80, 10, 10), mode='train'):
         # prepares the train, val and test data generators for the model
 
         total_num = len(self.df)
@@ -72,14 +72,10 @@ class Data:
         train_df = self.df[0:train_num]
         val_df = self.df[train_num:train_val_num]
         
-       # train_df = train_df.sample(frac=1)  # shuffles the training data
 
-        train_df.reset_index(drop=True, inplace=True)
-        
        # -----
-
-        y_col = self.df.columns.values.tolist()
-        y_col.remove("img_name")
+        """
+        y_col = self.data_file['outputs']
     
         print(y_col)
         class_mode = "multi_output" if len(y_col) > 1 else "raw"
@@ -89,31 +85,34 @@ class Data:
         color_mode = "grayscale" if self.img_settings["img_channels"] == 1 else "rgb"
 
         settings = {"directory": self.data_path, "x_col": "img_name", "y_col": y_col, "class_mode": class_mode,
-                    "batch_size": batch_size, "target_size": target_size, "color_mode": color_mode}
+                    "batch_size": batch_size, "target_size": target_size, "color_mode": color_mode, 'shuffle': False}
 
-        data_gen = ImageDataGenerator(rescale=1. / 255, horizontal_flip=True, vertical_flip=True)
-
+        if(mode == 'train'): 
+            data_gen = ImageDataGenerator(rescale=1. / 255, vertical_flip=True, horizontal_flip=True)
+        else:
+            data_gen = ImageDataGenerator(rescale=1. / 255)
+            
         train_gen = data_gen.flow_from_dataframe(train_df, **settings)
 
         val_gen = data_gen.flow_from_dataframe(val_df, **settings)
-
         """
-                settings = {'data_path': self.data_path, 'feature_col': 'IMG', 'label_col': 'SA', 'batch_size': batch_size,
-                            'img_settings': self.img_settings}
+        
+        
+        settings = {'img_data_path': self.data_path, 'used_labels': self.data_file['used_labels'], 'all_labels': self.data_file['all_labels'], 'batch_size': batch_size,
+                    'img_settings': self.img_settings}
 
-                train_gen = DataSequence(df=train_df, mode='train', **settings)
+        train_gen = DataSequence(df=train_df, mode='train', **settings)
 
-                val_gen = DataSequence(df=val_df, mode='val', **settings)
+        val_gen = DataSequence(df=val_df, mode='val', **settings)
 
-                test_gen = DataSequence(df=test_df, mode='test', **settings)
-        """
+        
         # -----
 
         data_dict = {'train': train_gen, 'val': val_gen}
         
         if train_val_num < total_num: 
             test_df = self.df[train_val_num:]
-            test_gen = data_gen.flow_from_dataframe(test_df, **settings)
+            test_gen = DataSequence(df=test_df, mode='test', **settings)
             data_dict['test'] = test_gen
          
         if get_labels: 
@@ -121,7 +120,7 @@ class Data:
             
             labels={"train":train_df.drop(columns=["img_name"]).values.tolist(),
                     "val":val_df.drop(columns=["img_name"]).values.tolist()}                         
-            print(labels)
+            print([x[0] for x in labels["train"]])
             if train_val_num < total_num: 
                 labels["test"] = test_df.drop(columns=["img_name"]).values.tolist()  
                 
@@ -134,7 +133,7 @@ class Data:
         else: 
             return data_dict
 
-    def load_data_to_memory(self, get_labels=False, batch_size=32, split=(80,10,10)):
+    def load_data_to_memory(self, get_labels=False, batch_size=32, split=(80,10,10), mode='train'):
         # loads all the images(prepared for the model) and skew angles to the memory and
         # splits it to train, val and test according to split
 

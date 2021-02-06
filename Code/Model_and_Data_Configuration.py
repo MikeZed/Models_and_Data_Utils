@@ -1,7 +1,8 @@
 
 
 from tensorflow import keras
-import tensorflow as tf 
+import tensorflow as tf
+
 
 ########################################################################################################################
 #                                                   Variables                                                          #
@@ -11,7 +12,7 @@ import tensorflow as tf
 #                                               DATA and FOLDERS                                                       #
 # -------------------------------------------------------------------------------------------------------------------- #
 
-URL = None
+URL = None  
 
 SAVE_DF = False
 REARRANGE_DF = False
@@ -19,8 +20,8 @@ SAVE_IMAGES = False
 
 PREPROCESSING_PATH = r"/home/michael/Cell_Classification/Files/Large_Windows"
 
-PREPROCESSING_DATA_FILE = {'path':  r"/home/michael/Cell_Classification/Files/data (Corrected) rearranged.xlsx",
-             'skip_rows': None, 'relevant_cols': ["img_name", "head1"]}
+PREPROCESSING_DATA_FILE = {'path':  r"/home/michael/Cell_Classification/Files/data (Corrected) rearranged.xlsx"}
+             # 'skip_rows': None, 'relevant_cols': ["img_name", "head0"]}
              #["img_name", "head0",	"head1", "head2", "mid0", "head3"]}
              # relevent_cols = None --> keep all columns
              
@@ -34,11 +35,14 @@ IMG_CHANNELS = 1
 # ---------------------------------------------------------------------------------------- 
 
 DATA_PATH = r"/home/michael/Cell_Classification/Files/Small_Windows_150"
-DATA_FILE =  {'path': r"/home/michael/Cell_Classification/Files/data (Corrected) rearranged.xlsx", 'relevant_cols': ["img_name", "head1"]}
+DATA_FILE =  {'path': r"/home/michael/Cell_Classification/Files/NormalizedData.xlsx",
+			  'all_labels': ["head0", "head1", "head2", "mid0", "head3"],
+              'used_labels': ["head1"]}
+
 MODELS_DIR = '/home/michael/Cell_Classification/Model_Objects'
 
 # GRAPHS_DIR = 'Training Graphs'
-MODEL_FILE = 'VGG19 binary_crossentropy 1'
+MODEL_FILE = 'VGG19 binary_crossentropy Transfer, mid0 Adam 123'
 
 # PATH = os.join(MODELS_DIR, MODEL_FILE)
 
@@ -53,12 +57,11 @@ USE_TRANSFER = True
 TRAIN_VAL_TEST_SPLIT = (80, 20, 0)
 USE_GENERATOR = True
 BATCH_SIZE = 8
-EPOCHS = 100
-
+EPOCHS = 80
 
 # -- transfer learning  --
-LAYERS_TO_TRAIN = 'all' # options: int / 'all'
-USE_TRANSFER = False  
+LAYERS_TO_TRAIN = 5 # options: int / 'all'
+USE_TRANSFER = True  
 
 
 if USE_TRANSFER:
@@ -93,14 +96,15 @@ MODEL_STRUCT = [
     {'name': 'MaxPooling2D', 'size': (2, 2)},
 
     {'name': 'Flatten', 'label': 'flat'},
+    {'name': 'DO', 'rate': 0.1},
     
     {'name': 'Dense', 'size': 256},
     {'name': 'Activation', 'type': 'relu'},
     {'name': 'BN'},
-    {'name': 'Dense', 'size': 128},
+    {'name': 'Dense', 'size': 128, 'kernel_regularizer': 0.001},
     {'name': 'Activation', 'type': 'relu'},
     {'name': 'BN'},
-    {'name': 'Dense', 'size': 64},
+    {'name': 'Dense', 'size': 64, 'kernel_regularizer': 0.001},
     {'name': 'Activation', 'type': 'relu'},
     {'name': 'BN'},
     {'name': 'Dense', 'size': 1},
@@ -108,6 +112,22 @@ MODEL_STRUCT = [
 
 ]
 
+"""
+    {'name': 'input', 'input_shape': (867), 'IO': 'input'},
+
+    {'name': 'Dense', 'size': 128, 'kernel_regularizer': 0.001},
+    {'name': 'BN'},
+    {'name': 'Activation', 'type': 'relu'},
+    
+    {'name': 'Dense', 'size': 64, 'kernel_regularizer': 0.001},
+    {'name': 'BN'},
+    {'name': 'Activation', 'type': 'relu'},
+    
+    {'name': 'Dense', 'size': 1},
+    {'name': 'Activation', 'type': 'sigmoid', 'IO': 'output'},
+]
+
+"""
 TRANSFER_MODEL = [
 
     {'name': 'Transfer', 'type': 'VGG19', 'layers_to_train': LAYERS_TO_TRAIN, 'input_shape': (IMAGE_RES, IMAGE_RES, IMG_CHANNELS), 'IO': 'input'},
@@ -115,20 +135,20 @@ TRANSFER_MODEL = [
     {'name': 'Flatten'},
     {'name': 'DO', 'rate': 0.1},
     
-    {'name': 'Dense', 'size': 128},
+    {'name': 'Dense', 'size': 128, 'kernel_regularizer': 0.001},
     {'name': 'BN'},
     {'name': 'Activation', 'type': 'relu'},
     
-    {'name': 'Dense', 'size': 64},
+    {'name': 'Dense', 'size': 64, 'kernel_regularizer': 0.001},
     {'name': 'BN'},
     {'name': 'Activation', 'type': 'relu'},
     
     {'name': 'Dense', 'size': 1},
     {'name': 'Activation', 'type': 'sigmoid', 'IO': 'output'},
-    
-
 ]
 """
+]
+
     {'name': 'DO', 'rate': 0.3, 'connected_to': 1},
     {'name': 'Dense', 'size': 64},
     {'name': 'Activation', 'type': 'relu'},

@@ -5,10 +5,12 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 from Data import Data
 
 import matplotlib.pyplot as plt
+
 from tensorflow import keras
 import sklearn.metrics 
 import hickle
 import os
+
 
 #----------------------
 import numpy as np 
@@ -133,7 +135,7 @@ class Model:
 
         model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 
-        model.summary()
+        # model.summary()
 
         self.model = model
         self.status = 'untrained'
@@ -174,19 +176,25 @@ class Model:
 
             layer_amount = 1 # if using transfer model --> the amount of layers added would be the depth of the model, 
                              #                             otherwise we add only 1 layer
-               
+            
+            kernel_regularizer = layer_description.get('kernel_regularizer', None)
+             
+            if(kernel_regularizer is not None):
+                kernel_regularizer =  keras.regularizers.l2(l2=kernel_regularizer) 
+                
             # ---------------------------------------
             #     create and connect current layer 
             # --------------------------------------- 
             
             if layer_description['name'] == 'Dense':
-                layers[i] = keras.layers.Dense(layer_description['size'])(prev_layer)
+                layers[i] = keras.layers.Dense(layer_description['size'], kernel_regularizer=kernel_regularizer)(prev_layer)
 
             elif layer_description['name'] == 'Activation':
                 layers[i] = keras.layers.Activation(layer_description['type'])(prev_layer)
 
             elif layer_description['name'] == 'Conv2D':
-                layers[i] = keras.layers.Conv2D(layer_description['filters'], layer_description['kernel_size'], padding='same')(prev_layer)
+                layers[i] = keras.layers.Conv2D(layer_description['filters'], layer_description['kernel_size'], padding='same',
+                                                kernel_regularizer=kernel_regularizer)(prev_layer)
 
             elif layer_description['name'] == 'MaxPooling2D':
                 layers[i] = keras.layers.MaxPooling2D(layer_description['size'])(prev_layer)
@@ -252,7 +260,7 @@ class Model:
             x = keras.applications.VGG16(**settings)
 
         elif transfer_dict['type'] == 'VGG19':
-            x = keras.applications.VGG19(**settings)
+            x = keras.applications.vgg19.VGG19(**settings)
     
         elif transfer_dict['type'] == 'ResNet50':
             x = keras.applications.ResNet50(**settings)
@@ -356,7 +364,7 @@ class Model:
             
             for key, value in data.items(): 
                 predictions[key]=list(zip(*self.model.predict(value)))
-                
+               #predictions[key]=list(self.model.predict(value))
             return predictions
             
         else:
@@ -474,7 +482,9 @@ class Model:
         # evaluates the classifier by plotting the ROC or Precision Recall Curve
        # print(predictions)
         x=np.array(predictions['train'])
-        print(((x>0.5).astype(int)).tolist())
+        x=((x>0.5).astype(int)).tolist()
+       # x=[y[0] for y in x]
+        print(x)
         
         plt.figure(figsize=(11, 8))
 

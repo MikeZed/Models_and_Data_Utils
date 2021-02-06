@@ -80,12 +80,12 @@ def load_data_and_construct_model(model, model_dict, save_model, img_settings, t
     # plot results
     model.plot_train_val_history(save_path=save_path, plots_in_row=plots_in_row)
     
-    data_dict, labels = data_loader.load_data(get_labels=True, batch_size=training_dict['batch_size'], split=train_val_test_split)
+    data_dict, labels = data_loader.load_data(get_labels=True, batch_size=training_dict['batch_size'], split=train_val_test_split, mode='val')
    
     predictions = model.predict(data_dict)
     
     model.evaluate_classifier(predictions=predictions, labels=labels, mode='roc', save_path=save_path, plots_in_row=plots_in_row)
-    #model.evaluate_classifier(predictions=predictions, labels=labels, mode='pr',  save_path=save_path, plots_in_row=plots_in_row)
+    model.evaluate_classifier(predictions=predictions, labels=labels, mode='pr',  save_path=save_path, plots_in_row=plots_in_row)
 
 def prep_and_check_existing(models_dir, model_file):
     # check if there is already an existing model at path
