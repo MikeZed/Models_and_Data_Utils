@@ -51,9 +51,7 @@ def create_model(models_dir, model_file, model_dict=None, save_model=True, img_s
 
         if continue_training:
             load_data_and_construct_model(**settings)
-
-        print(model.model.metrics_names)
-        
+                    
 
     return model
 

@@ -42,7 +42,7 @@ class DataPreprocessor:
             self.df = self.rearrange_dataframe_func(self.df)
 
         if save_df_to_file:
-            path = self.data_file['path'].split('.')[0] + " (1).xlsx"
+            path = self.data_file.split('.')[0] + " (1).xlsx"
             self.df.to_excel(path)
             
         if to_save_imgs: 
@@ -68,15 +68,13 @@ class DataPreprocessor:
     def get_dataframe(self):
         # loads the dataframe 
         
-        file_extension = self.data_file['path'].split('.')[-1]
+        file_extension = self.data_file.split('.')[-1]
 
         if (file_extension == 'txt' or file_extension == 'csv'):
-            self.df = pd.read_csv(self.data_file, usecols=self.data_file['relevant_cols'],
-                                  skiprows=self.data_file['skip_rows'], delim_whitespace=True)
+            self.df = pd.read_csv(self.data_file, delim_whitespace=True)
 
         elif file_extension == 'xlsx':
-            self.df = pd.read_excel(self.data_file["path"], usecols=self.data_file['relevant_cols'],
-                                    skiprows=self.data_file['skip_rows'])
+            self.df = pd.read_excel(self.data_file["path"])
 
 
     def save_images(self): 

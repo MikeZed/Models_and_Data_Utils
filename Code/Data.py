@@ -7,7 +7,6 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 
 from DataSequence import DataSequence
 
-from image_utils import prepare_image
 from tensorflow import keras
 import pandas as pd
 import numpy as np
@@ -98,10 +97,10 @@ class Data:
         """
         
         
-        settings = {'img_data_path': self.data_path, 'used_labels': self.data_file['used_labels'], 'all_labels': self.data_file['all_labels'], 'batch_size': batch_size,
-                    'img_settings': self.img_settings}
+        settings = {'img_data_path': self.data_path, 'used_labels': self.data_file['used_labels'], 'all_labels': self.data_file['all_labels'],
+                    'data_type': self.data_file['data_type'], 'batch_size': batch_size, 'img_settings': self.img_settings}
 
-        train_gen = DataSequence(df=train_df, mode='train', **settings)
+        train_gen = DataSequence(df=train_df, mode=mode, **settings)
 
         val_gen = DataSequence(df=val_df, mode='val', **settings)
 
@@ -116,18 +115,20 @@ class Data:
             data_dict['test'] = test_gen
          
         if get_labels: 
-            outputs_num = len(self.df.columns)-1
+            outputs_num = len(self.data_file['used_labels']) 
             
-            labels={"train":train_df.drop(columns=["img_name"]).values.tolist(),
-                    "val":val_df.drop(columns=["img_name"]).values.tolist()}                         
-            print([x[0] for x in labels["train"]])
+            labels={"train": train_df[self.data_file['used_labels']].values.tolist(),
+                    "val":val_df[self.data_file['used_labels']].values.tolist()}                         
+
             if train_val_num < total_num: 
                 labels["test"] = test_df.drop(columns=["img_name"]).values.tolist()  
                 
             if outputs_num == 1:
                 for key,value in labels.items():
                     labels[key]=list(zip(*value))
-                   
+
+            print((labels["train"]))
+
             return data_dict, labels
             
         else: 
@@ -178,7 +179,7 @@ class Data:
 
 
     # --------------------------------------------------------------------------------------------------------------- #
-
+    """
     def load_images_and_labels(self):
         # loads all the images (prepared for the model) and labels to the memory
         data = [tuple(r) for r in self.df.values.tolist()]
@@ -195,7 +196,7 @@ class Data:
         print(data[0][0].shape)
    
         return data
-   
+    """
 
             
             

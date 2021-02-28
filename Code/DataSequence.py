@@ -2,7 +2,6 @@
 
 from tensorflow.keras.utils import Sequence
 from keras_preprocessing.image import ImageDataGenerator
-from image_utils import prepare_image
 import numpy as np
 import random
 
@@ -22,15 +21,18 @@ class DataSequence(Sequence):
                  batch_size=32, mode='train', data_type = 'img'):
 
         self.df = df.copy()
+
         self.img_data_path = img_data_path
         self.batch_size = batch_size
-        self.mode = mode
-
         self.img_settings = img_settings
+        
+        self.mode = mode
+        self.data_type = data_type 
 
         feature_cols = [col for col in df.columns.values if col not in all_labels]
         feature_cols.remove("img_name")
 
+        #self.df_img_names = df["img_name"]
         self.features = df[feature_cols].values.tolist()
         self.labels_data = df[used_labels].values.tolist()
 
@@ -45,13 +47,6 @@ class DataSequence(Sequence):
         else: 
             self.img_data_gen = None 
        
-
-
-
-
-
-
-
         """
         # self.f_type=["img" if IMG_KEY_WORD in f else "float" for f in df[feature_cols].columns]
         features = df[feature_cols].to_list()
@@ -61,11 +56,6 @@ class DataSequence(Sequence):
         
         self.data = (features, labels)
         """
-
-
-
-
-
 
     def on_epoch_end(self):
     	pass 
@@ -84,18 +74,21 @@ class DataSequence(Sequence):
     def __getitem__(self, idx):
         bsz = self.batch_size
 
-        features_data = []
         labels_data = self.labels_data[bsz * idx: bsz * (idx + 1)]
 
-        if (self.img_data_gen is not None): 
-            features_data = self.img_data_gen[idx] 
+        if(self.data_type == "mixed"):
+            features_data = self.img_data_gen[idx][0] 
+            features_data = list(zip(features_data, self.features[bsz * idx: bsz * (idx + 1)]))
 
+        elif(self.data_type == "img"): 
+            features_data = self.img_data_gen[idx][0]  
 
-        """
+        else: # self.data_type == "numeric" 
+            features_data = self.features[bsz * idx: bsz * (idx + 1)]
+
         # data_batch = self.data[bsz * idx: bsz * (idx + 1)]
-        features = self.data[0][bsz * idx: bsz * (idx + 1)]
-        labels = self.data[1][bsz * idx: bsz * (idx + 1)]
-        
+        #labels = self.data[1][bsz * idx: bsz * (idx + 1)]
+        """
         f = features[:]
         load_img=False 
         
@@ -119,10 +112,10 @@ class DataSequence(Sequence):
         imgs , sa = zip(*data_batch)
         
         """
-        return features_data, np.array(labels_data)
+        #print(features_data, np.array(labels_data))
+        #print(len(self.features), len(self.features[0]))
+        return np.array(features_data), np.array(labels_data)
 
-
-      
     def get_img_data_gen(self):
         target_size = (self.img_settings["img_res"], self.img_settings["img_res"])
             
@@ -133,6 +126,7 @@ class DataSequence(Sequence):
 
         if(self.mode == 'train'): 
                data_gen = ImageDataGenerator(rescale=1. / 255, vertical_flip=True, horizontal_flip=True)
+               settings['shuffle'] = True
         else:
                data_gen = ImageDataGenerator(rescale=1. / 255)
                 

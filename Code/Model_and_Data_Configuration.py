@@ -12,32 +12,18 @@ import tensorflow as tf
 #                                               DATA and FOLDERS                                                       #
 # -------------------------------------------------------------------------------------------------------------------- #
 
-URL = None  
-
-SAVE_DF = False
-REARRANGE_DF = False
-SAVE_IMAGES = False 
-
-PREPROCESSING_PATH = r"/home/michael/Cell_Classification/Files/Large_Windows"
-
-PREPROCESSING_DATA_FILE = {'path':  r"/home/michael/Cell_Classification/Files/data (Corrected) rearranged.xlsx"}
-             # 'skip_rows': None, 'relevant_cols': ["img_name", "head0"]}
-             #["img_name", "head0",	"head1", "head2", "mid0", "head3"]}
-             # relevent_cols = None --> keep all columns
-             
 # -- image settings --
 IMAGE_RES = 150    # setting this parameter for more the 200 is not recommended
 IMG_MODE = 'crop'  # options: 'pad', 'patch', 'edges' or 'crop'
 IMG_CHANNELS = 1
 
-      
-# ---------------------------------------------------------------------------------------- 
 # ---------------------------------------------------------------------------------------- 
 
 DATA_PATH = r"/home/michael/Cell_Classification/Files/Small_Windows_150"
-DATA_FILE =  {'path': r"/home/michael/Cell_Classification/Files/NormalizedData.xlsx",
-			  'all_labels': ["head0", "head1", "head2", "mid0", "head3"],
-              'used_labels': ["head1"]}
+DATA_FILE =  {'path': r"/home/michael/Cell_Classification/Files/Old_Excel_Files/NormalizedData.xlsx",
+			  'all_labels': ["head0", "head1", "head2", "mid0", "head3", "combined"],
+              'used_labels': ["head1"], 'data_type': "numeric"} 
+              # data_type is mixed, img or numeric  
 
 MODELS_DIR = '/home/michael/Cell_Classification/Model_Objects'
 
@@ -57,7 +43,7 @@ USE_TRANSFER = True
 TRAIN_VAL_TEST_SPLIT = (80, 20, 0)
 USE_GENERATOR = True
 BATCH_SIZE = 8
-EPOCHS = 80
+EPOCHS = 300 
 
 # -- transfer learning  --
 LAYERS_TO_TRAIN = 5 # options: int / 'all'
@@ -113,23 +99,30 @@ MODEL_STRUCT = [
 ]
 
 """
-    {'name': 'input', 'input_shape': (867), 'IO': 'input'},
 
-    {'name': 'Dense', 'size': 128, 'kernel_regularizer': 0.001},
-    {'name': 'BN'},
-    {'name': 'Activation', 'type': 'relu'},
-    
-    {'name': 'Dense', 'size': 64, 'kernel_regularizer': 0.001},
-    {'name': 'BN'},
-    {'name': 'Activation', 'type': 'relu'},
-    
-    {'name': 'Dense', 'size': 1},
-    {'name': 'Activation', 'type': 'sigmoid', 'IO': 'output'},
 ]
 
 """
 TRANSFER_MODEL = [
 
+
+    {'name': 'input', 'input_shape': (867,), 'IO': 'input', 'label': 'in'},
+
+    {'name': 'Dense', 'size': 128, 'kernel_regularizer': 0.001, 'connected_to': 'in'},
+    {'name': 'BN'},
+    {'name': 'Activation', 'type': 'relu', 'label': 'out1'},
+    
+    {'name': 'Dense', 'size': 64, 'kernel_regularizer': 0.001, 'connected_to': 'in'},
+    {'name': 'BN'},
+    {'name': 'Activation', 'type': 'relu', 'label': 'out2'},
+    
+    {'name': 'Concatenate', 'concatenated_layers': ['out1', 'out2']},
+
+    {'name': 'Dense', 'size': 1},
+    {'name': 'Activation', 'type': 'sigmoid', 'IO': 'output'}
+ ]
+
+"""
     {'name': 'Transfer', 'type': 'VGG19', 'layers_to_train': LAYERS_TO_TRAIN, 'input_shape': (IMAGE_RES, IMAGE_RES, IMG_CHANNELS), 'IO': 'input'},
 
     {'name': 'Flatten'},
@@ -146,6 +139,8 @@ TRANSFER_MODEL = [
     {'name': 'Dense', 'size': 1},
     {'name': 'Activation', 'type': 'sigmoid', 'IO': 'output'},
 ]
+
+"""
 """
 ]
 
@@ -182,51 +177,4 @@ TRANSFER_MODEL = [
 ]
 """
 
-########################################################################################################################
-#                                                   Functions                                                          #
-########################################################################################################################
-
-
-def rearrange_dataframe(df): 
-    """ 
-    readrranges the dataset's dataframe, the output is a dataframe of the following structure:
-    
-      img_name (feature)    out0 (label)    out1 (label) ...
-           img.png              1               2        ...
-             .                  .               .
-             .                  .               .
-             .                  .               .
-             
-    Note: this function is defined outside of the Data Class because, most likely, different functions would 
-          fit different datasets.         
-    """
-    # --------------------------------------------------------------------------
-    pd.options.mode.chained_assignment = None
-
-  #  df = df.loc[~(df['good_pic0'] * df['good_pic1'] == 0)]  # drop bad images
-  #  df = df.loc[~(df['head0'] == 'N')]  # drop bad images
-  #  df.dropna(inplace=True)
-
-    # df=df[df["head0"] != "N"]
-
-  #  df.drop(['good_pic0', 'good_pic1'], axis=1, inplace=True)
-
-    df.loc[:, 'Identifier'] = df['Identifier'].str.replace('C', 'F')
-    df_FC = df['Identifier'].str.split('F', expand=True)
-
-    df.loc[:, 'Identifier'] = [f"D{d}_F{f:03d}_C{c:02d}" for d, f, c in
-                               zip(df['Donor'], df_FC[1].astype(int), df_FC[2].astype(int))]
-
-    img_name = df['Identifier'] + ".png"
-
-    df.insert(0, 'img_name', img_name)
-
-    df.drop(['Donor', 'Identifier'], axis=1, inplace=True)
-
-    pd.options.mode.chained_assignment = 'warn'
-    # --------------------------------------------------------------------------
-    df.reset_index(drop=True, inplace=True)
-
-    return df
-    
     

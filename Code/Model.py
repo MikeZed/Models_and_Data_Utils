@@ -135,7 +135,7 @@ class Model:
 
         model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 
-        # model.summary()
+        model.summary()
 
         self.model = model
         self.status = 'untrained'
@@ -165,13 +165,19 @@ class Model:
                 # if not input layer, get previous layer
                 
                prev_layer = layer_description.get('connected_to', None) # get label if exists
-                
-               if prev_layer is None: 
-                   # get layer to connect to according to label, 
-                   prev_layer = layers[i-1]
+               concatenated_layers_labels = layer_description.get('concatenated_layers', None)
+
+               if prev_layer is not None: 
+				   # get layer to connect to according to label, 
+                   prev_layer = layers_labels[prev_layer]   
+
+               elif concatenated_layers_labels is not None:
+               		# if concatenating layers, prev_layer is a list of the layers being concatenated 
+               		prev_layer = [layers_labels[c] for c in concatenated_layers_labels]
+
                else:   
                    # if there is no label take the previous layer 
-                   prev_layer = layers_labels[prev_layer]             
+                   prev_layer = layers[i-1]    
                                                                         
 
             layer_amount = 1 # if using transfer model --> the amount of layers added would be the depth of the model, 
@@ -210,6 +216,9 @@ class Model:
 
             elif layer_description['name'] == 'Flatten':
                 layers[i] = keras.layers.Flatten()(prev_layer)                   
+                
+            elif layer_description['name'] == 'Concatenate':
+                layers[i] = keras.layers.Concatenate()(prev_layer)                   
                 
             elif layer_description['name'] == 'Lambda':
                 layers[i] = keras.layers.Lambda(layer_description['func'])(prev_layer)
@@ -357,7 +366,6 @@ class Model:
     
     def predict(self, data):
         # predicts labels by using the model 
-        print(data)
         if isinstance(data, dict):
         
             predictions={}
@@ -484,7 +492,6 @@ class Model:
         x=np.array(predictions['train'])
         x=((x>0.5).astype(int)).tolist()
        # x=[y[0] for y in x]
-        print(x)
         
         plt.figure(figsize=(11, 8))
 
@@ -525,8 +532,9 @@ class Model:
         for key in keys:
             if key not in predictions or key not in labels: 
                 continue
-                
+
             out_labels[key] = list(zip(*labels[key]))
+
             out_predictions[key] = list(zip(*predictions[key]))
             
             if outputs_num == 1:
@@ -561,6 +569,9 @@ class Model:
             for key in keys: 
                 if key not in predictions or key not in labels: 
                     continue 
+
+
+                print(len(out_labels[key][i]), len(out_predictions[key][i]))    
                 x, y, _ = evaulate_func(out_labels[key][i], out_predictions[key][i])
                 
                 score = score_func(out_labels[key][i], out_predictions[key][i])
