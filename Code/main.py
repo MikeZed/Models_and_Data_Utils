@@ -2,6 +2,69 @@
 
 
 """
+	Model Training Order:
+
+	 1. only imgs, VGG19,    lr = 0.0005, 
+	   with {}
+	   no   {weight init, regulizers, DO, BN, rotation / flipping, whitened}
+
+
+	 2. only imgs, VGG19,    lr = 0.00001, - Change layers to train 
+	   with {weight init} 
+	   no {regulizers, DO, BN, rotation / flipping, whitened}
+
+
+	 3. only imgs, VGG19,    lr = 0.00001, 
+	   with {weight init, regulizers, DO, BN} 
+	   no {rotation / flipping, whitened}
+
+
+	 4. only imgs, ResNet50, lr = 0.00001, 
+	   with {weight init, regulizers, DO, BN} 
+	   no {rotation / flipping, whitened}
+
+
+	 5. only imgs, ResNet50, lr = 0.00001, 
+	   with {weight init, regulizers, DO, BN, rotation / flipping, whitened} 
+	   no {}
+
+
+   6. mixed (standard), ResNet50, lr = 0.00001, 
+	   with {weight init, regulizers, DO, BN, rotation / flipping, whitened} 
+	   no {}
+
+
+	 7. mixed (robust), ResNet50, lr = 0.00001, 
+	   with {weight init, regulizers, DO, BN, rotation / flipping, whitened} 
+	   no {}
+
+
+	 8. mixed (min-max), ResNet50, lr = 0.00001, 
+	   with {weight init, regulizers, DO, BN, rotation / flipping, whitened} 
+	   no {}
+ 
+   8.1. mixed (min-max), VGG19, lr = 0.00001, 
+	   with {weight init, regulizers, DO, BN, rotation / flipping, whitened} 
+	   no {}
+
+
+	 9. mixed (min-max), ResNet50, lr = 0.00001, - Change Architecture 				
+	   with {weight init, regulizers, DO, BN, rotation / flipping, whitened} 
+	   no {}
+ 
+ 	 10. one label at a time mixed (min-max), ResNet50, lr = 0.00001, 
+	   with {weight init, regulizers, DO, BN, rotation / flipping, whitened} 
+	   no {} head0->head1->mid0->head2->head3
+ 
+   10.1. one label at a time mixed (min-max), VGG19, lr = 0.00001, 
+	   with {weight init, regulizers, DO, BN, rotation / flipping, whitened} 
+	   no {} head0->head1->mid0->head2->head3
+  
+
+
+
+
+
                                                      TO-DO                                                             
 												  -----------
 			* add support for numeric and mixed data in DataSequence:
@@ -16,8 +79,6 @@
 			* move evaluation to another class 
 
 			* rearrange model evaulation and data code  
-
-			* create dynamic informative model name 
 
 
 												Possible Additions
@@ -35,6 +96,9 @@ from ModelManager import create_model
 
 from Model_and_Data_Configuration import *
 
+
+import cv2
+import matplotlib.pyplot as plt
 # ---------------------------------------------------------------------
 IMG_SETTINGS = {'img_res': IMAGE_RES, 'img_channels': IMG_CHANNELS, 'img_mode': IMG_MODE}           
 
@@ -55,13 +119,13 @@ DATA_SETTINGS = {'training_dict': TRAINING_DICT, 'train_val_test_split': TRAIN_V
                 'data_path': DATA_PATH, 'data_file': DATA_FILE, 'img_settings': IMG_SETTINGS}
        
        
-       
-import numpy as np    
-import sklearn
-import matplotlib.pyplot as plt
-    
 def main():
  
+    #img=cv2.imread("/home/michael/Cell_Classification/Code/Data_Preprocessing/Small_Windows_Whitened/D102_F001_C02.png",0)
+    #plt.imshow(img*255, cmap='gray')
+    
+   # plt.show()
+    
     Classifier = create_model(MODELS_DIR, MODEL_FILE, **MODEL_SETTINGS, **DATA_SETTINGS)
 
     print("Finishing program...")

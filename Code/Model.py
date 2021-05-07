@@ -64,7 +64,7 @@ class Model:
     ################################################################################################################
 
     def construct(self, optimizer, loss, struct, epochs, batch_size, data_dict, layers_to_train=3,
-                  save_path=None, metrics=None, use_generator=False):
+                  save_path=None, metrics=None):
         # builds model, loads data, trains and evaluates model
 
         # ---------------------------------------
@@ -77,8 +77,7 @@ class Model:
         #    load data, train and evaluate
         # ---------------------------------------
 
-        self.continue_training(data_dict=data_dict, epochs=epochs, batch_size=batch_size,
-                               use_generator=use_generator)
+        self.continue_training(data_dict=data_dict, epochs=epochs, batch_size=batch_size)
 
         # ---------------------------------------
         #            save model
@@ -90,7 +89,7 @@ class Model:
 
     # ------------------------------------------------------------------------------------------------------------ #
 
-    def continue_training(self, data_dict, epochs=100, batch_size=32, use_generator=False):
+    def continue_training(self, data_dict, epochs=100, batch_size=32):
         # gets data dictionary, trains the model and evaluates it
 
         self.epochs.append(epochs)
@@ -100,7 +99,7 @@ class Model:
         #        continue training the model
         # ---------------------------------------
 
-        self.train_model(train=data_dict['train'], val=data_dict['val'], use_generator=use_generator)
+        self.train_model(train=data_dict['train'], val=data_dict['val'])
 
         # self.model.summary()
 
@@ -109,7 +108,7 @@ class Model:
         # ---------------------------------------
 
         if 'test' in data_dict: #if not split[2] == 0:
-            self.evaluate_model(data_dict['test'], use_generator=use_generator)
+            self.evaluate_model(data_dict['test'])
 
     ###################################################################################################################
     #                                             Building                                                            #
@@ -258,7 +257,7 @@ class Model:
         
               
     def add_transfer_model(self, layers, transfer_dict, index): 
-    
+        # 'imagenet'
         settings = {'weights': 'imagenet', 'include_top': False, 'input_shape': transfer_dict['input_shape']}
         
         # ---------------------------------------
@@ -307,7 +306,7 @@ class Model:
     #                                             Training                                                            #
     ###################################################################################################################
 
-    def train_model(self, train, val, epochs=None, batch_size=None, use_generator=False):
+    def train_model(self, train, val, epochs=None, batch_size=None):
         # trains the model and updates its training history
         # recommended to use only through continue_training, because the epochs and batch_size are determined there
         print("Training model...")
@@ -325,11 +324,7 @@ class Model:
 
         settings = {'epochs': epochs, 'shuffle': True, 'verbose': 1, 'initial_epoch': initial_epoch}
 
-        if use_generator:
-            history = self.model.fit(train, validation_data=val, **settings)
-
-        else:
-            history = self.model.fit(train[0], train[1], validation_data=val, batch_size=batch_size, **settings)
+        history = self.model.fit(train, validation_data=val, **settings)
 
         history = history.history
 
@@ -345,13 +340,10 @@ class Model:
     #                                             Evaluating                                                          #
     ###################################################################################################################
 
-    def evaluate_model(self, test, use_generator=False):
+    def evaluate_model(self, test):
         # evaluates the model
 
-        if use_generator:
-            evaluation = self.model.evaluate(test)
-        else:
-            evaluation = self.model.evaluate(test[0], test[1])
+        evaluation = self.model.evaluate(test)
 
         evaluation = list(zip(self.model.metrics_names, evaluation))
 
@@ -486,7 +478,7 @@ class Model:
         plt.show()
 
 
-    def evaluate_classifier(self, predictions, labels, mode='roc', plots_in_row=3, save_path=None): # TODO 
+    def evaluate_classifier(self, predictions, labels, labels_name, mode='roc', plots_in_row=3, save_path=None): # TODO 
         # evaluates the classifier by plotting the ROC or Precision Recall Curve
        # print(predictions)
         x=np.array(predictions['train'])
@@ -501,13 +493,16 @@ class Model:
         
         output_shape = self.model.output_shape if isinstance(self.model.output_shape,list) else [self.model.output_shape]
         outputs_num = len(output_shape)
-        
+
+        print(self.model.output_shape, [self.model.output_shape])
+        print(" --- {} --- ".format(str(outputs_num)))
+
+
         if outputs_num < plots_in_row:
             plots_in_row = outputs_num
             
         num_plot_rows = outputs_num // plots_in_row + (outputs_num % plots_in_row > 0)
          
-        print(outputs_num, num_plot_rows, plots_in_row)
          
         if mode == 'roc':
             # plot ROC 
@@ -567,13 +562,18 @@ class Model:
             
             i-=1
             for key in keys: 
-                if key not in predictions or key not in labels: 
+                if key not in out_predictions or key not in out_labels: 
                     continue 
 
-
-                print(len(out_labels[key][i]), len(out_predictions[key][i]))    
+                print(i)
+                print(out_labels[key][i][:10])
                 x, y, _ = evaulate_func(out_labels[key][i], out_predictions[key][i])
-                
+
+                """
+                out_predictions[key][i] = np.array(out_predictions[key][i])
+                out_predictions[key][i][out_predictions[key][i]>0.5]=1 
+                out_predictions[key][i][out_predictions[key][i]<=0.5]=0
+                """
                 score = score_func(out_labels[key][i], out_predictions[key][i])
                 
                 plt.plot(x, y, label="{}, {}: {:.3f}".format(key, score_label, score))
@@ -586,7 +586,7 @@ class Model:
             plt.legend()
 
         
-            plt.title("Output {} {}".format(i, plt_title),fontsize=18)
+            plt.title("{} {}".format(labels_name[i], plt_title),fontsize=18)
                 
        
             

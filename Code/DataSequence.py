@@ -6,6 +6,10 @@ import numpy as np
 import random
 
 
+import sys 
+sys.path.insert(0,'/home/michael/Cell_Classification/Code/Data_Preprocessing/')
+from image_utils import rotate_images #, load_images_to_memory
+
 #IMG_TYPE=[".png"]
 #IMG_KEY_WORD = "img"
 
@@ -74,17 +78,23 @@ class DataSequence(Sequence):
     def __getitem__(self, idx):
         bsz = self.batch_size
 
-        labels_data = self.labels_data[bsz * idx: bsz * (idx + 1)]
+        labels_data = np.array(self.labels_data[bsz * idx: bsz * (idx + 1)])
 
         if(self.data_type == "mixed"):
             features_data = self.img_data_gen[idx][0] 
-            features_data = list(zip(features_data, self.features[bsz * idx: bsz * (idx + 1)]))
+            features_data = np.array(rotate_images(features_data))         
+            #features_data = np.array(features_data)         
+
+            features_data = [features_data, np.array(self.features[bsz * idx: bsz * (idx + 1)])]
 
         elif(self.data_type == "img"): 
-            features_data = self.img_data_gen[idx][0]  
+            features_data = self.img_data_gen[idx][0] 
+            features_data = np.array(rotate_images(features_data))
+            #features_data = np.array(features_data)         
+
 
         else: # self.data_type == "numeric" 
-            features_data = self.features[bsz * idx: bsz * (idx + 1)]
+            features_data = np.array(self.features[bsz * idx: bsz * (idx + 1)])
 
         # data_batch = self.data[bsz * idx: bsz * (idx + 1)]
         #labels = self.data[1][bsz * idx: bsz * (idx + 1)]
@@ -114,7 +124,7 @@ class DataSequence(Sequence):
         """
         #print(features_data, np.array(labels_data))
         #print(len(self.features), len(self.features[0]))
-        return np.array(features_data), np.array(labels_data)
+        return features_data, labels_data
 
     def get_img_data_gen(self):
         target_size = (self.img_settings["img_res"], self.img_settings["img_res"])
@@ -125,8 +135,10 @@ class DataSequence(Sequence):
                 "batch_size": self.batch_size, "target_size": target_size, "color_mode": color_mode, 'shuffle': False}
 
         if(self.mode == 'train'): 
-               data_gen = ImageDataGenerator(rescale=1. / 255, vertical_flip=True, horizontal_flip=True)
-               settings['shuffle'] = True
+               data_gen = ImageDataGenerator(rescale=1./ 255, vertical_flip=True, horizontal_flip=True)
+               # imgs = load_images_to_memory(self.img_data_path, self.df["img_name"].values.tolist(), self.img_settings["img_channels"])
+        
+               #settings['shuffle'] = True
         else:
                data_gen = ImageDataGenerator(rescale=1. / 255)
                 

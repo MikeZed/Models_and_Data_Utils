@@ -16,23 +16,24 @@ import pandas as pd
 
 URL = None  
 
-SAVE_DF = True
-REARRANGE_DF = True
+SAVE_DF = False
+REARRANGE_DF = False
 SAVE_IMAGES = True
+WHITEN_IMGS=True
 
-AFTER_PREPROCESSING_PATH = {'path':  r"/home/michael/Cell_Classification/Code/Data_Preprocessing/Small_Windows"}
+AFTER_PREPROCESSING_PATH = r"/home/michael/Cell_Classification/Code/Data_Preprocessing/Small_Windows_Whitened_23.04"
 
-PREPROCESSING_PATH = r"/home/michael/Cell_Classification/Files/Large_Windows"
+PREPROCESSING_PATH = r"/home/michael/Cell_Classification/Files/Small_Windows_150"
 
-PREPROCESSING_DATA_FILE = r"/home/michael/Cell_Classification/Code/Data_Preprocessing/valid + features (Original).xlsx"
+PREPROCESSING_DATA_FILE = r"/home/michael/Cell_Classification/Files/valid + features min-max.xlsx"
              # 'skip_rows': None, 'relevant_cols': ["img_name", "head0"]}
              #["img_name", "head0",	"head1", "head2", "mid0", "head3"]}
              # relevent_cols = None --> keep all columns
              
 # -- image settings --
 IMAGE_RES = 150    # setting this parameter for more the 200 is not recommended
-IMG_MODE = 'crop'  # options: 'pad', 'patch', 'edges' or 'crop'
-IMG_CHANNELS = 1
+IMG_MODE = 'crop'  # options: 'pad', 'patch', 'edges' or 'crop' or 'Histogram Equalization'
+IMG_CHANNELS = 3
 
       
 # ---------------------------------------------------------------------------------------- 
@@ -58,15 +59,6 @@ def rearrange_dataframe(df):
     """
     # --------------------------------------------------------------------------
     pd.options.mode.chained_assignment = None
-
-  #  df = df.loc[~(df['good_pic0'] * df['good_pic1'] == 0)]  # drop bad images
-  #  df = df.loc[~(df['head0'] == 'N')]  # drop bad images
-  #  df.dropna(inplace=True)
-
-    # df=df[df["head0"] != "N"]
-
-  #  df.drop(['good_pic0', 'good_pic1'], axis=1, inplace=True)
-
     df.loc[:, 'Identifier'] = df['Identifier'].str.replace('C', 'F')
     df_FC = df['Identifier'].str.split('F', expand=True)
 
@@ -79,14 +71,29 @@ def rearrange_dataframe(df):
 
     df.drop(['Donor', 'Identifier'], axis=1, inplace=True)
     
-    x = df.values #returns a numpy array
-    min_max_scaler = preprocessing.MinMaxScaler()
-    x_scaled = min_max_scaler.fit_transform(x)
-    df = pd.DataFrame(x_scaled)
-    
-    
+    # x = df.values #returns a numpy array
     
 
+    x = df
+    #min max scale
+
+    #min_max_scaler = preprocessing.MinMaxScaler()
+    #x.iloc[:,1:-5] = min_max_scaler.fit_transform(x.iloc[:,1:-5].values)
+   
+    #Standard scaler scale
+    #std_scaler = preprocessing.StandardScaler()
+    #x.iloc[:,1:-5] = std_scaler.fit_transform(x.iloc[:,1:-5].values)
+    
+    #RobustScaler
+    RobustScaler_scaler = preprocessing.RobustScaler()
+    x.iloc[:,1:-5] = RobustScaler_scaler.fit_transform(x.iloc[:,1:-5].values)
+
+
+
+
+    df = pd.DataFrame(x)
+    
+    
     pd.options.mode.chained_assignment = 'warn'
     # --------------------------------------------------------------------------
     df.reset_index(drop=True, inplace=True)

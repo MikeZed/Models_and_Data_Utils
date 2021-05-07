@@ -8,7 +8,7 @@ import os
 YES = ['y', 'Y', '1', ' ']
 
 
-def create_model(models_dir, model_file, model_dict=None, save_model=True, img_settings=None, use_generator=True, 
+def create_model(models_dir, model_file, model_dict=None, save_model=True, img_settings=None, 
                  data_path=None, data_file=None, training_dict=None, train_val_test_split=(80,10,10), plots_in_row=3): 
                  
                  
@@ -29,7 +29,7 @@ def create_model(models_dir, model_file, model_dict=None, save_model=True, img_s
     # -------------------------------------------------
            
     settings = {'model': None, 'model_dict': model_dict,  'save_model': save_model, 'img_settings': img_settings,
-                'training_dict': training_dict, 'train_val_test_split': train_val_test_split, 'use_generator': use_generator,
+                'training_dict': training_dict, 'train_val_test_split': train_val_test_split,
                 'data_path': data_path, 'data_file': data_file, 'save_path': path, 'plots_in_row': plots_in_row}
                  
     if not use_existing:
@@ -52,19 +52,19 @@ def create_model(models_dir, model_file, model_dict=None, save_model=True, img_s
         if continue_training:
             load_data_and_construct_model(**settings)
                     
-
+                    
     return model
 
 # ------------------------------------------------------------------------------------------------------------------- #
 
 def load_data_and_construct_model(model, model_dict, save_model, img_settings, training_dict, train_val_test_split, 
-                                  use_generator, data_path, data_file, save_path, plots_in_row):
+                                  data_path, data_file, save_path, plots_in_row):
         
     if not save_model:
         save_path = None  
           
     # load data
-    data_loader = Data(use_generator=use_generator, data_path=data_path, data_file=data_file, img_settings=img_settings)
+    data_loader = Data(data_path=data_path, data_file=data_file, img_settings=img_settings)
                       
     # load dataframe
     data_loader.load_dataframe()
@@ -73,17 +73,19 @@ def load_data_and_construct_model(model, model_dict, save_model, img_settings, t
     data_dict = data_loader.load_data(batch_size=training_dict['batch_size'], split=train_val_test_split)
     
     # create and train model
-    model.construct(**model_dict, **training_dict, use_generator=use_generator, data_dict=data_dict, save_path=save_path)
+    model.construct(**model_dict, **training_dict, data_dict=data_dict, save_path=save_path)
     
     # plot results
     model.plot_train_val_history(save_path=save_path, plots_in_row=plots_in_row)
     
-    data_dict, labels = data_loader.load_data(get_labels=True, batch_size=training_dict['batch_size'], split=train_val_test_split, mode='val')
-   
+    data_dict = data_loader.load_data(batch_size=training_dict['batch_size'], split=train_val_test_split, mode='val')
+    labels = data_loader.get_labels(split=train_val_test_split)
+
     predictions = model.predict(data_dict)
-    
-    model.evaluate_classifier(predictions=predictions, labels=labels, mode='roc', save_path=save_path, plots_in_row=plots_in_row)
-    model.evaluate_classifier(predictions=predictions, labels=labels, mode='pr',  save_path=save_path, plots_in_row=plots_in_row)
+
+
+    model.evaluate_classifier(predictions=predictions, labels=labels, labels_name=data_file["used_labels"], mode='roc', save_path=save_path, plots_in_row=plots_in_row)
+    model.evaluate_classifier(predictions=predictions, labels=labels, labels_name=data_file["used_labels"], mode='pr',  save_path=save_path, plots_in_row=plots_in_row)
 
 def prep_and_check_existing(models_dir, model_file):
     # check if there is already an existing model at path

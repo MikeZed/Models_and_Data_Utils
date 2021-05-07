@@ -32,8 +32,8 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # or any {'0', '1', '2'}
 
 
 
-from Model_and_Data_Configuration import *
-from DataPrep import *
+from DataPrepConfig import *
+from DataPreprocessor import *
 
 # ---------------------------------------------------------------------
 IMG_SETTINGS = {'img_res': IMAGE_RES, 'img_channels': IMG_CHANNELS, 'img_mode': IMG_MODE} 
@@ -50,11 +50,34 @@ PREPROCESSING_DATA_SETTINGS = {'img_settings': IMG_SETTINGS, 'data_path': PREPRO
 import numpy as np    
 import sklearn
 import matplotlib.pyplot as plt
-    
+#np.set_printoptions(threshold=np.inf)
+import matplotlib.image
+from PIL import Image
+
+
 def main():
- 
-    Data=DataPreprocessor(**PREPROCESSING_DATA_SETTINGS)
-    Data.preprocess_data(save_df_to_file=SAVE_DF, to_rearrange_df=REARRANGE_DF, to_save_imgs=SAVE_IMAGES, url=URL)
+
+    '''
+    img1=cv2.imread("/home/michael/Cell_Classification/Code/Data_Preprocessing/Small_Windows_Whitened_23.04/D102_F001_C01.png",0)
+    print(img1,'\n'*10)
+    img1= matplotlib.image.imread("/home/michael/Cell_Classification/Code/Data_Preprocessing/Small_Windows_Whitened_23.04/D102_F001_C01.png")
+    print(img1,'\n'*10)
+    img1 = plt.imread("/home/michael/Cell_Classification/Code/Data_Preprocessing/Small_Windows_Whitened_23.04/D102_F001_C01.png")
+    print(img1,'\n'*10)
+    
+    
+    img2=cv2.imread("/home/michael/Cell_Classification/Files/Small_Windows_150/D102_F001_C01.png",0)
+    print(img2,'\n'*10)
+    img2= matplotlib.image.imread("/home/michael/Cell_Classification/Files/Small_Windows_150/D102_F001_C01.png")
+    print(img2,'\n'*10)
+    img2 = plt.imread("/home/michael/Cell_Classification/Files/Small_Windows_150/D102_F001_C01.png")
+    print(img2,'\n'*10)
+    '''
+    img1=Image.open("/home/michael/Cell_Classification/Code/Data_Preprocessing/Small_Windows_Whitened_23.04/D102_F001_C01.png")
+    print(np.array(img1),'\n'*10)
+    
+   # Data=DataPreprocessor(**PREPROCESSING_DATA_SETTINGS)
+    #Data.preprocess_data(save_df_to_file=SAVE_DF, to_rearrange_df=REARRANGE_DF, to_save_imgs=SAVE_IMAGES,to_whiten_imgs=WHITEN_IMGS, url=URL)
 
 if __name__ == "__main__":
     main()

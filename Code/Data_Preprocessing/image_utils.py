@@ -4,8 +4,11 @@ import matplotlib.pyplot as plt
 from random import randint
 import numpy as np
 import cv2
-
-
+from skimage import exposure
+from scipy import ndimage
+import matplotlib.pyplot as plt
+import numpy as np
+np.set_printoptions(threshold=np.inf)
 ########################################################################################################################
 #                                          Functions that Prepare the Images for the Model                             #
 ########################################################################################################################
@@ -17,6 +20,7 @@ def prepare_image(image_path, img_res, img_mode, img_channels=1, vertical_flip=F
 
     image = cv2.imread(image_path, channels)
 
+    
     if invert_colors:
         image = cv2.bitwise_not(image)
 
@@ -53,10 +57,8 @@ def prepare_image(image_path, img_res, img_mode, img_channels=1, vertical_flip=F
 
         shape = (img_res, img_res)
         images = get_edges(image, shape)
-    else:
-        images = [image]
 
-    if img_mode == 'crop':
+    elif img_mode == 'crop':
         # get middle crop o the image, size : img_res X img_res
 
         shape_x, shape_y = image.shape[0:2]
@@ -64,6 +66,22 @@ def prepare_image(image_path, img_res, img_mode, img_channels=1, vertical_flip=F
 
         image = crop_image(image, win_size=img_res, crop_corner=crop_region_corner)
         images = [image]
+        
+    elif img_mode == 'contrast streching':
+        image   = np.array(image,dtype=np.uint8)
+        p2, p98 = np.percentile(image, (2, 98))
+        image   = exposure.rescale_intensity(image, in_range=(p2, p98))
+        images  = [image]
+        
+    elif img_mode == 'Histogram Equalization':
+        image  = np.array(image,dtype=np.uint8)
+        image  = exposure.equalize_hist(image)
+        images = [image]
+        
+        
+    else:
+        images = [image]
+        
 
     if save_img:
         # get img name and type
@@ -84,6 +102,86 @@ def prepare_image(image_path, img_res, img_mode, img_channels=1, vertical_flip=F
 
 
 # -------------------------------------------------------------------------------------------------------------------- #
+
+def make_the_images_white(imgs_path, img_name_list, img_channels):
+    # loads all the images to the memory
+    #zca_epsilon=1e-6
+    #zca_whitening_matrix=None
+    channels = 0 if img_channels == 1 else 1
+
+    data = (np.array(cv2.imread("{}/{}".format(imgs_path, img), channels)) 
+        for img in img_name_list)
+        
+    mean_mask=np.zeros((150, 150,3),dtype=float)
+    std_mask=np.zeros((150, 150,3),dtype=float)
+    numberofimages=len(img_name_list)
+    
+    for image in data:
+        image=image/255
+        mean_mask+=(image/numberofimages)
+        
+    data = (np.array(cv2.imread("{}/{}".format(imgs_path, img), channels)) 
+        for img in img_name_list)
+        
+    for image in data:
+        image=image/255
+        image=abs(image-mean_mask)**2
+        
+        std_mask+=(image/numberofimages)
+        
+    std_mask=np.sqrt(std_mask)
+    
+   
+    data = (np.array(cv2.imread("{}/{}".format(imgs_path, img), channels)) 
+        for img in img_name_list)
+        
+    images=[((image/255)-mean_mask)/std_mask for image in data]
+    
+    images=[((img-img.min())/(img.max()-img.min())) for img in data]
+    
+   #dsfdswerwer for i,img in enumerate(images):
+        # cv2.imshow("ok!",img)  #(img*255)/np.max(img)
+        #cv2.waitKey(0)
+        #img=((img-img.min())/(img.max()-img.min()))
+        #print(i,img.min(),img.max())
+        #plt.imshow(img,cmap='gray')
+        #plt.show() 
+    
+      
+    '''n = len(data)
+    flat_x = np.reshape(data, (n, -1))
+    u, s, _ = np.linalg.svd(flat_x.T, full_matrices=False)
+    s_inv = np.sqrt(n) / (s + zca_epsilon)
+    zca_whitening_matrix = (u * s_inv).dot(u.T)
+      
+      
+    
+    
+    flat_x = data.reshape(-1, np.prod(data.shape[-3:]))
+    white_x = flat_x @ zca_whitening_matrix
+    data = np.reshape(white_x, data.shape)'''
+    
+    
+    
+    return images
+   
+           
+def rotate_images(imgs):
+    return [rotate_image(img) for img in imgs]
+       
+    
+def rotate_image(img):
+    #plt.figure()
+    #plt.imshow(img)
+    #plt.show()
+    img = ndimage.rotate(img, randint(0,3) * 90)
+    #plt.figure()
+    #plt.imshow(img)
+    #plt.show()
+
+    return img
+
+
 
 def pad_image(image, size, val):
     # pads image to a square shape
