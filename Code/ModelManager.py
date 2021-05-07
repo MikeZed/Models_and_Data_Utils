@@ -2,6 +2,7 @@
 
 from Data import Data
 from Model import Model
+from ModelEvaluator import ModelEvaluator
 import pandas as pd
 import os
 
@@ -19,8 +20,6 @@ def create_model(models_dir, model_file, model_dict=None, save_model=True, img_s
     # ---------------------------------------
     #            check existing model
     # ---------------------------------------
-
-    # print(MODEL_DICT)
 
     use_existing, path = prep_and_check_existing(models_dir=models_dir, model_file=model_file) 
     
@@ -76,16 +75,17 @@ def load_data_and_construct_model(model, model_dict, save_model, img_settings, t
     model.construct(**model_dict, **training_dict, data_dict=data_dict, save_path=save_path)
     
     # plot results
-    model.plot_train_val_history(save_path=save_path, plots_in_row=plots_in_row)
+    model_evaluator = ModelEvaluator(model)
+
+    model_evaluator.plot_train_val_history(save_path=save_path, plots_in_row=plots_in_row)
     
     data_dict = data_loader.load_data(batch_size=training_dict['batch_size'], split=train_val_test_split, mode='val')
     labels = data_loader.get_labels(split=train_val_test_split)
 
     predictions = model.predict(data_dict)
 
-
-    model.evaluate_classifier(predictions=predictions, labels=labels, labels_name=data_file["used_labels"], mode='roc', save_path=save_path, plots_in_row=plots_in_row)
-    model.evaluate_classifier(predictions=predictions, labels=labels, labels_name=data_file["used_labels"], mode='pr',  save_path=save_path, plots_in_row=plots_in_row)
+    model_evaluator.evaluate_classifier(predictions=predictions, labels=labels, labels_name=data_file["used_labels"], mode='roc', save_path=save_path, plots_in_row=plots_in_row)
+    model_evaluator.evaluate_classifier(predictions=predictions, labels=labels, labels_name=data_file["used_labels"], mode='pr',  save_path=save_path, plots_in_row=plots_in_row)
 
 def prep_and_check_existing(models_dir, model_file):
     # check if there is already an existing model at path
@@ -95,9 +95,6 @@ def prep_and_check_existing(models_dir, model_file):
 
     if not os.path.exists(models_dir):
         os.mkdir(models_dir)
-
-    # if not os.path.exists(GRAPHS_DIR):
-    #     os.mkdir(GRAPHS_DIR)
 
     if os.path.exists(path):
         use_existing = input("A trained model already exists: \nUse existing one? (Y/[N]): ")

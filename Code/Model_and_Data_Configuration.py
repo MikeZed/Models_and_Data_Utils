@@ -15,7 +15,7 @@ import tensorflow as tf
 
 # -- image settings --
 IMAGE_RES = 150    # setting this parameter for more the 200 is not recommended
-IMG_MODE = 'crop'  # options: 'pad', 'patch', 'edges' or 'crop'
+IMG_PREPROCESSING = ['crop']  # options: 'pad' or 'crop'
 IMG_CHANNELS = 1
 
 # ---------------------------------------------------------------------------------------- 
@@ -47,10 +47,11 @@ MODELS_DIR = '/home/michael/Cell_Classification/models_test' # Model_Objects'
 
 SAVE_MODEL = True    
 USE_TRANSFER = True 
+
 # -- training --
 TRAIN_VAL_TEST_SPLIT = (80, 20, 0)
 BATCH_SIZE = 8
-EPOCHS = 80
+EPOCHS = 1
 
 # -- transfer learning  --
 LAYERS_TO_TRAIN =  5 # options: int / 'all'
@@ -63,53 +64,19 @@ if USE_TRANSFER:
 # -- results --
 PLOTS_IN_ROW = 2
 
-
 # -- structure and functions --
-# NUM_OF_FILTERS = (32, 64, 256)
 
-LEARNING_RATE =0.00001 #   0.0005 0.00001
+LEARNING_RATE = 0.00001 #   0.0005 0.00001
 OPTIMIZER = keras.optimizers.Adam(learning_rate=LEARNING_RATE)
 LOSS_FUNC = 'binary_crossentropy'  # binary_crossentropy, hinge, mean_absolute_error, mean_squared_error 
 METRICS = ['binary_accuracy']
 
 if LOSS_FUNC in METRICS:
     METRICS.remove(LOSS_FUNC)
+ 
 
+# 'VGG19' 'ResNet50'
 
-MODEL_STRUCT = [
-
-    {'name': 'input', 'input_shape': (IMAGE_RES, IMAGE_RES, IMG_CHANNELS), 'IO': 'input'},
-
-    {'name': 'Conv2D', 'filters': 32, 'kernel_size': (5, 5)},
-    {'name': 'Conv2D', 'filters': 32, 'kernel_size': (3, 3)},
-    {'name': 'MaxPooling2D', 'size': (2, 2)},
-
-    {'name': 'Conv2D', 'filters': 64, 'kernel_size': (3, 3)},
-    {'name': 'Conv2D', 'filters': 64, 'kernel_size': (2, 2)},
-    {'name': 'MaxPooling2D', 'size': (2, 2)},
-
-    {'name': 'Flatten', 'label': 'flat'},
-    {'name': 'DO', 'rate': 0.1},
-    
-    {'name': 'Dense', 'size': 256},
-    {'name': 'Activation', 'type': 'relu'},
-    {'name': 'BN'},
-    {'name': 'Dense', 'size': 128, 'kernel_regularizer': 0.001},
-    {'name': 'Activation', 'type': 'relu'},
-    {'name': 'BN'},
-    {'name': 'Dense', 'size': 64, 'kernel_regularizer': 0.001},
-    {'name': 'Activation', 'type': 'relu'},
-    {'name': 'BN'},
-    {'name': 'Dense', 'size': 1},
-    {'name': 'Activation', 'type': 'sigmoid', 'IO': 'output'},
-
-]
-
-"""
-
-]
-'VGG19' 'ResNet50'
-"""
 TRANSFER_MODEL = [
 
     {'name': 'Transfer', 'type': 'VGG19', 'layers_to_train': LAYERS_TO_TRAIN, 'input_shape': (IMAGE_RES, IMAGE_RES, IMG_CHANNELS), 'IO': 'input'},
@@ -187,7 +154,36 @@ TRANSFER_MODEL = [
 
 ]
 """
+"""
+MODEL_STRUCT = [
 
+    {'name': 'input', 'input_shape': (IMAGE_RES, IMAGE_RES, IMG_CHANNELS), 'IO': 'input'},
+
+    {'name': 'Conv2D', 'filters': 32, 'kernel_size': (5, 5)},
+    {'name': 'Conv2D', 'filters': 32, 'kernel_size': (3, 3)},
+    {'name': 'MaxPooling2D', 'size': (2, 2)},
+
+    {'name': 'Conv2D', 'filters': 64, 'kernel_size': (3, 3)},
+    {'name': 'Conv2D', 'filters': 64, 'kernel_size': (2, 2)},
+    {'name': 'MaxPooling2D', 'size': (2, 2)},
+
+    {'name': 'Flatten', 'label': 'flat'},
+    {'name': 'DO', 'rate': 0.1},
+    
+    {'name': 'Dense', 'size': 256},
+    {'name': 'Activation', 'type': 'relu'},
+    {'name': 'BN'},
+    {'name': 'Dense', 'size': 128, 'kernel_regularizer': 0.001},
+    {'name': 'Activation', 'type': 'relu'},
+    {'name': 'BN'},
+    {'name': 'Dense', 'size': 64, 'kernel_regularizer': 0.001},
+    {'name': 'Activation', 'type': 'relu'},
+    {'name': 'BN'},
+    {'name': 'Dense', 'size': 1},
+    {'name': 'Activation', 'type': 'sigmoid', 'IO': 'output'},
+
+]
+"""
     
 MODEL_FILE = "{} - {} {} {} {}".format(datetime.datetime.today(),
                                     TRANSFER_MODEL[0]["type"] if USE_TRANSFER else "non-transfer",

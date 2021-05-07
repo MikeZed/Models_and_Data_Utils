@@ -100,7 +100,7 @@ from Model_and_Data_Configuration import *
 import cv2
 import matplotlib.pyplot as plt
 # ---------------------------------------------------------------------
-IMG_SETTINGS = {'img_res': IMAGE_RES, 'img_channels': IMG_CHANNELS, 'img_mode': IMG_MODE}           
+IMG_SETTINGS = {'img_res': IMAGE_RES, 'img_channels': IMG_CHANNELS, 'img_preprocessing': IMG_PREPROCESSING}           
 
 # ---------------------------------------------------------------------
 

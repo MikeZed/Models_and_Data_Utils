@@ -3,7 +3,7 @@ import warnings
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-from image_utils import prepare_image, make_the_images_white
+from image_utils import process_image, whiten_all_images, save_image
 from patoolib import extract_archive
 from tensorflow import keras
 import pandas as pd
@@ -11,6 +11,7 @@ import cv2
 import os
 import numpy as np
 from PIL import Image
+
 
 class DataPreprocessor:
     # used to download the dataset and preprocessing
@@ -29,7 +30,7 @@ class DataPreprocessor:
 
     # ---------------------------------------------------------------------------------------------------------------- #
 
-    def preprocess_data(self, save_df_to_file=False, to_rearrange_df=False, to_save_imgs=False,to_whiten_imgs=False, url=None):
+    def preprocess_data(self, save_df_to_file=False, to_rearrange_df=False, to_save_imgs=False, url=None):
         # preprocesses the data: 
         # - downloads the dataset rar and extracts it
         # - loads rearranges the dataframe 
@@ -46,11 +47,9 @@ class DataPreprocessor:
         if save_df_to_file:
             path = self.data_file.split('.')[0] + " (1).xlsx"
             self.df.to_excel(path)
-        if to_whiten_imgs:
-            imgs=make_the_images_white(self.data_path, self.df["img_name"].values.tolist(), self.img_settings["img_channels"])
-            self.save_images(imgs=imgs)
-        elif to_save_imgs: 
-            self.save_images()
+        
+        if to_save_imgs: 
+            self.preprocess_and_save_images()
             
         print("Data is ready for use.\n")
 
@@ -81,32 +80,26 @@ class DataPreprocessor:
             self.df = pd.read_excel(self.data_file)
 
 
-    def save_images(self,imgs=None): 
+    def preprocess_and_save_images(self): 
         # saves all the images (prepared for the model)
         
         os.makedirs(self.preprocessing_path, exist_ok=True) 
-        os.makedirs(self.preprocessing_path+'ViewMode', exist_ok=True) 
-        
-        for i,img_name in enumerate(self.df['img_name']):
+
+        if('whiten_imgs' in self.img_settings['img_preprocessing']): 
+            imgs = whiten_all_images(self.data_path, self.df["img_name"].values.tolist(), self.img_settings["img_channels"])
+        else:
+            imgs = self.process_images()
+
+        for i, img_name in enumerate(self.df['img_name']):
             # save image after pre-processing
-            
-            if imgs is not None:
-               #print(imgs[i])
-               #break
-               save_path = "{}/{}".format(self.preprocessing_path, img_name)
-               #cv2.imwrite(save_path, np.array(imgs[i]))
-               im = Image.fromarray(imgs[i])
-               im.save(save_path)
-               
-               save_path = "{}/{}".format(self.preprocessing_path+'ViewMode', img_name)
-               #cv2.imwrite(save_path, np.array(imgs[i])*255)
-               im = Image.fromarray(imgs[i]*255)
-               im.save(save_path)
-            else:
-              img_path = "{}/{}".format(self.data_path, img_name)
-              prepare_image(img_path, **self.img_settings, save_img=True, save_path=self.preprocessing_path) 
-            
-               
+            save_image(imgs[i], "{}/{}".format(self.preprocessing_path, img_name))
+             
+                
+    def process_images(self): 
+        imgs = [process_image("{}/{}".format(self.data_path, img_name), **self.img_settings)  
+                for img_name in self.df['img_name']]
+        
+        return imgs
             
             
             

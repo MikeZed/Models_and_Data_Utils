@@ -19,9 +19,8 @@ URL = None
 SAVE_DF = False
 REARRANGE_DF = False
 SAVE_IMAGES = True
-WHITEN_IMGS=True
 
-AFTER_PREPROCESSING_PATH = r"/home/michael/Cell_Classification/Code/Data_Preprocessing/Small_Windows_Whitened_23.04"
+AFTER_PREPROCESSING_PATH = r"/home/michael/Cell_Classification/Code/Data_Preprocessing/Small_Windows_Whitened_23.04 123123"
 
 PREPROCESSING_PATH = r"/home/michael/Cell_Classification/Files/Small_Windows_150"
 
@@ -32,7 +31,7 @@ PREPROCESSING_DATA_FILE = r"/home/michael/Cell_Classification/Files/valid + feat
              
 # -- image settings --
 IMAGE_RES = 150    # setting this parameter for more the 200 is not recommended
-IMG_MODE = 'crop'  # options: 'pad', 'patch', 'edges' or 'crop' or 'Histogram Equalization'
+IMG_PREPROCESSING = ['whiten_imgs']  # options: 'whiten_imgs', 'invert_colors', 'pad' or 'crop' or 'Histogram Equalization'
 IMG_CHANNELS = 3
 
       
