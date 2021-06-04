@@ -1,6 +1,5 @@
 
 
-
 """
 	Model Training Order:
 
@@ -86,47 +85,47 @@
 			* general data handling in DataSequence (multiple images, img name not in first column)
 
 """
+import matplotlib.pyplot as plt
+import cv2
+from Model_Structs import IMAGE_RES, IMG_CHANNELS, IMG_PREPROCESSING
+from Model_and_Data_Configuration import *
+from ModelManager import create_model
 import os
 
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # or any {'0', '1', '2'}
 
 
-from ModelManager import create_model
-
-from Model_and_Data_Configuration import *
-
-
-import cv2
-import matplotlib.pyplot as plt
 # ---------------------------------------------------------------------
-IMG_SETTINGS = {'img_res': IMAGE_RES, 'img_channels': IMG_CHANNELS, 'img_preprocessing': IMG_PREPROCESSING}           
+IMG_SETTINGS = {'img_res': IMAGE_RES, 'img_channels': IMG_CHANNELS,
+                'img_preprocessing': IMG_PREPROCESSING}
 
 # ---------------------------------------------------------------------
 
 MODEL_DICT = {'optimizer': OPTIMIZER, 'loss': LOSS_FUNC, 'metrics': METRICS,
-              'struct': MODEL_STRUCT if not USE_TRANSFER else TRANSFER_MODEL, 'layers_to_train': LAYERS_TO_TRAIN}
+              'struct': MODEL_STRUCT, 'callbacks': CALLBACKS}
 
 TRAINING_DICT = {'epochs': EPOCHS, 'batch_size': BATCH_SIZE}
 
 
-
 # ------------
-MODEL_SETTINGS = {'model_dict': MODEL_DICT,'save_model': SAVE_MODEL}
+MODEL_SETTINGS = {'model_dict': MODEL_DICT,
+                  'save_model': SAVE_MODEL}
 
-                                
+
 DATA_SETTINGS = {'training_dict': TRAINING_DICT, 'train_val_test_split': TRAIN_VAL_TEST_SPLIT, 'plots_in_row': PLOTS_IN_ROW,
-                'data_path': DATA_PATH, 'data_file': DATA_FILE, 'img_settings': IMG_SETTINGS}
-       
-       
+                 'data_path': DATA_PATH, 'data_file': DATA_FILE, 'img_settings': IMG_SETTINGS}
+
+
 def main():
- 
-    #img=cv2.imread("/home/michael/Cell_Classification/Code/Data_Preprocessing/Small_Windows_Whitened/D102_F001_C02.png",0)
+
+    # img=cv2.imread("/home/michael/Cell_Classification/Code/Data_Preprocessing/Small_Windows_Whitened/D102_F001_C02.png",0)
     #plt.imshow(img*255, cmap='gray')
-    
+
    # plt.show()
-    
-    Classifier = create_model(MODELS_DIR, MODEL_FILE, **MODEL_SETTINGS, **DATA_SETTINGS)
+
+    Classifier = create_model(MODELS_DIR, MODEL_FILE,
+                              **MODEL_SETTINGS, **DATA_SETTINGS)
 
     print("Finishing program...")
 

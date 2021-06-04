@@ -1,15 +1,13 @@
-import warnings
+# fmt: off 
 
+import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-from Data import Data
-
-import matplotlib.pyplot as plt
-
-from tensorflow import keras
-import sklearn.metrics 
-import hickle
 import os
+import hickle
+from tensorflow import keras
+
+# fmt: on
 
 
 class Model:
@@ -34,7 +32,7 @@ class Model:
         opt = self.model.optimizer.get_config()['name']
         lr = self.model.optimizer.get_config()['learning_rate']
         loss = self.model.loss if type(self.model.loss) is str \
-                else str(self.model.loss).split(' ')[1]
+            else str(self.model.loss).split(' ')[1]
 
         epochs_and_batch_size = list(zip(self.epochs, self.batch_size))
 
@@ -53,27 +51,29 @@ class Model:
             .format(**model_info_dict)
 
         if self.evaluation is not None:
-            model_str += "Test dataset evaluation: {}\n".format(self.evaluation)
+            model_str += "Test dataset evaluation: {}\n".format(
+                self.evaluation)
 
         return model_str
 
     ################################################################################################################
 
-    def construct(self, optimizer, loss, struct, epochs, batch_size, data_dict, layers_to_train=3,
-                  save_path=None, metrics=None):
+    def construct(self, optimizer, loss, struct, epochs, batch_size, data_dict,
+                  save_path=None, metrics=None, callbacks=None):
         # builds model, loads data, trains and evaluates model
 
         # ---------------------------------------
         #            build model
         # ---------------------------------------
         if self.model is None:
-            self.build_model(optimizer, loss, struct, layers_to_train, metrics)
+            self.build_model(optimizer, loss, struct, metrics)
 
         # ---------------------------------------
         #    load data, train and evaluate
         # ---------------------------------------
 
-        self.continue_training(data_dict=data_dict, epochs=epochs, batch_size=batch_size)
+        self.continue_training(data_dict=data_dict,
+                               epochs=epochs, batch_size=batch_size, callbacks=callbacks)
 
         # ---------------------------------------
         #            save model
@@ -85,7 +85,7 @@ class Model:
 
     # ------------------------------------------------------------------------------------------------------------ #
 
-    def continue_training(self, data_dict, epochs=100, batch_size=32):
+    def continue_training(self, data_dict, epochs=100, batch_size=32, callbacks=None):
         # gets data dictionary, trains the model and evaluates it
 
         self.epochs.append(epochs)
@@ -95,7 +95,8 @@ class Model:
         #        continue training the model
         # ---------------------------------------
 
-        self.train_model(train=data_dict['train'], val=data_dict['val'])
+        self.train_model(train=data_dict['train'],
+                         val=data_dict['val'], callbacks=callbacks)
 
         # self.model.summary()
 
@@ -103,14 +104,14 @@ class Model:
         #            evaluating
         # ---------------------------------------
 
-        if 'test' in data_dict: #if not split[2] == 0:
+        if 'test' in data_dict:  # if not split[2] == 0:
             self.evaluate_model(data_dict['test'])
 
     ###################################################################################################################
     #                                             Building                                                            #
     ###################################################################################################################
 
-    def build_model(self, optimizer, loss, struct, layers_to_train=3, metrics=None):
+    def build_model(self, optimizer, loss, struct, metrics=None):
         # builds the model either layer by layer or by using transfer learning
 
         # ---------------------------------------
@@ -119,7 +120,7 @@ class Model:
 
         print("Building model...")
 
-        model = self.build_layers(struct, layers_to_train=layers_to_train)
+        model = self.build_layers(struct)
 
         # ---------------------------------------
         #           compile model
@@ -137,172 +138,187 @@ class Model:
 
         print("Model is built!\n")
 
-    def build_layers(self, model_struct, layers_to_train=3):
+    def build_layers(self, model_struct):
         # builds the model layer by layer
-       
+
         layers = [None] * len(model_struct)
-        
-        layers_labels = {}  
-        inputs=[]
-        outputs=[]
-        
+
+        layers_labels = {}
+        inputs = []
+        outputs = []
+
         i = -1
-        
+
         for layer_description in model_struct[0:len(model_struct)]:
-        
-            i+=1
-            
+
+            i += 1
+
             # ---------------------------------------
             #        determine previous layer
             # ---------------------------------------
-            
-            if not (layer_description['name'] == 'input' or layer_description['name'] == 'Transfer'): 
+
+            if not (layer_description['name'] == 'input' or layer_description['name'] == 'Transfer'):
                 # if not input layer, get previous layer
-                
-               prev_layer = layer_description.get('connected_to', None) # get label if exists
-               concatenated_layers_labels = layer_description.get('concatenated_layers', None)
 
-               if prev_layer is not None: 
-				   # get layer to connect to according to label, 
-                   prev_layer = layers_labels[prev_layer]   
+                prev_layer = layer_description.get(
+                    'connected_to', None)  # get label if exists
 
-               elif concatenated_layers_labels is not None:
-               		# if concatenating layers, prev_layer is a list of the layers being concatenated 
-               		prev_layer = [layers_labels[c] for c in concatenated_layers_labels]
+                concatenated_layers_labels = layer_description.get(
+                    'concatenated_layers', None)
 
-               else:   
-                   # if there is no label take the previous layer 
-                   prev_layer = layers[i-1]    
-                                                                        
+                if prev_layer is not None:
+                    # get layer to connect to according to label,
+                    prev_layer = layers_labels[prev_layer]
 
-            layer_amount = 1 # if using transfer model --> the amount of layers added would be the depth of the model, 
-                             #                             otherwise we add only 1 layer
-            
-            kernel_regularizer = layer_description.get('kernel_regularizer', None)
-             
+                elif concatenated_layers_labels is not None:
+                    # if concatenating layers, prev_layer is a list of the layers being concatenated
+                    prev_layer = [layers_labels[c]
+                                  for c in concatenated_layers_labels]
+
+                else:
+                    # if there is no label take the previous layer
+                    prev_layer = layers[i-1]
+
+            # if using transfer model --> the amount of layers added would be the depth of the model,
+            # otherwise we add only 1 layer
+            layer_amount = 1
+
+            kernel_regularizer = layer_description.get(
+                'kernel_regularizer', None)
+
             if(kernel_regularizer is not None):
-                kernel_regularizer =  keras.regularizers.l2(l2=kernel_regularizer) 
-                
+                kernel_regularizer = keras.regularizers.l2(
+                    kernel_regularizer)
+
             # ---------------------------------------
-            #     create and connect current layer 
-            # --------------------------------------- 
-            
+            #     create and connect current layer
+            # ---------------------------------------
+
             if layer_description['name'] == 'Dense':
-                layers[i] = keras.layers.Dense(layer_description['size'], kernel_regularizer=kernel_regularizer)(prev_layer)
+                layers[i] = keras.layers.Dense(
+                    layer_description['size'], kernel_regularizer=kernel_regularizer)(prev_layer)
 
             elif layer_description['name'] == 'Activation':
-                layers[i] = keras.layers.Activation(layer_description['type'])(prev_layer)
+                layers[i] = keras.layers.Activation(
+                    layer_description['type'])(prev_layer)
 
             elif layer_description['name'] == 'Conv2D':
                 layers[i] = keras.layers.Conv2D(layer_description['filters'], layer_description['kernel_size'], padding='same',
                                                 kernel_regularizer=kernel_regularizer)(prev_layer)
 
             elif layer_description['name'] == 'MaxPooling2D':
-                layers[i] = keras.layers.MaxPooling2D(layer_description['size'])(prev_layer)
+                layers[i] = keras.layers.MaxPooling2D(
+                    layer_description['size'])(prev_layer)
 
             elif layer_description['name'] == 'AveragePooling2D':
-                layers[i] = keras.layers.AveragePooling2D(layer_description['size'])(prev_layer)
+                layers[i] = keras.layers.AveragePooling2D(
+                    layer_description['size'])(prev_layer)
 
             elif layer_description['name'] == 'BN':
                 layers[i] = keras.layers.BatchNormalization()(prev_layer)
 
             elif layer_description['name'] == 'DO':
-                layers[i] = keras.layers.Dropout(layer_description['rate'])(prev_layer)
+                layers[i] = keras.layers.Dropout(
+                    layer_description['rate'])(prev_layer)
 
             elif layer_description['name'] == 'Flatten':
-                layers[i] = keras.layers.Flatten()(prev_layer)                   
-                
+                layers[i] = keras.layers.Flatten()(prev_layer)
+
             elif layer_description['name'] == 'Concatenate':
-                layers[i] = keras.layers.Concatenate()(prev_layer)                   
-                
+                layers[i] = keras.layers.Concatenate()(prev_layer)
+
             elif layer_description['name'] == 'Lambda':
-                layers[i] = keras.layers.Lambda(layer_description['func'])(prev_layer)
-                
+                layers[i] = keras.layers.Lambda(
+                    layer_description['func'])(prev_layer)
+
             elif layer_description['name'] == 'input':
                 # building a regular model
-                layers[i] = keras.layers.Input(shape=layer_description['input_shape'])
-            
+                layers[i] = keras.layers.Input(
+                    shape=layer_description['input_shape'])
+
             elif layer_description['name'] == 'Transfer':
-                # using transfer learning          
-                layer_amount = self.add_transfer_model(layers, layer_description, i)
-                i+=layer_amount-1    
-                
+                # using transfer learning
+                layer_amount = self.add_transfer_model(
+                    layers, layer_description, i)
+                i += layer_amount-1
+
             else:
-                raise NameError('Unknown Layer!')     
-            
+                raise NameError('Unknown Layer!')
+
             # -----------------------------------------
-            #   add layer to labels dict if labelled, 
-            #   add layer to input / output list if IO 
-            # ----------------------------------------- 
-               
+            #   add layer to labels dict if labelled,
+            #   add layer to input / output list if IO
+            # -----------------------------------------
+
             if 'label' in layer_description:
-                layers_labels[layer_description['label']] = layers[i] # label points to output of a layers
-            
-            if 'IO' not in layer_description: 
-                continue 
-                
-            if layer_description['IO'] == 'input': 
-                inputs.append(layers[i+1-layer_amount])    
-            
-            if layer_description['IO'] == 'output': 
-                outputs.append(layers[i]) 
-                
+                # label points to output of a layers
+                layers_labels[layer_description['label']] = layers[i]
+
+            if 'IO' not in layer_description:
+                continue
+
+            if layer_description['IO'] == 'input':
+                inputs.append(layers[i+1-layer_amount])
+
+            if layer_description['IO'] == 'output':
+                outputs.append(layers[i])
+
         model = keras.models.Model(inputs=inputs, outputs=outputs)
 
         return model
-        
-              
-    def add_transfer_model(self, layers, transfer_dict, index): 
+
+    def add_transfer_model(self, layers, transfer_dict, index):
         # 'imagenet'
-        settings = {'weights': 'imagenet', 'include_top': False, 'input_shape': transfer_dict['input_shape']}
-        
+        settings = {'weights': 'imagenet', 'include_top': False,
+                    'input_shape': transfer_dict['input_shape']}
+
         # ---------------------------------------
         #      determine and load model
         # ---------------------------------------
-        
+
         if transfer_dict['type'] == 'VGG16':
             x = keras.applications.VGG16(**settings)
 
         elif transfer_dict['type'] == 'VGG19':
             x = keras.applications.vgg19.VGG19(**settings)
-    
+
         elif transfer_dict['type'] == 'ResNet50':
             x = keras.applications.ResNet50(**settings)
 
         else:
             raise NameError('Unknown Transfer Model!')
-        
+
         # -----------------------------------------------
         #    add transfer model's layers to list and
         #    freeze layers according to layers_to_train
         # -----------------------------------------------
-        
+
         layer_amount = len(x.layers)
         layers += [None] * layer_amount
 
-        layers_to_train = layer_amount if transfer_dict['layers_to_train'] == 'all' else transfer_dict['layers_to_train']
-                
-        layers[index] = x.input 
-        index+=1
-                
-        for j, layer in enumerate(x.layers[1:], 1): 
-        
-            layers[index] = layer 
-            index+=1
-            
-            if j+1 <= layer_amount-layers_to_train: 
-                layer.trainable=False
-                               
+        layers_to_train = layer_amount if transfer_dict[
+            'layers_to_train'] == 'all' else transfer_dict['layers_to_train']
+
+        layers[index] = x.input
+        index += 1
+
+        for j, layer in enumerate(x.layers[1:], 1):
+
+            layers[index] = layer
+            index += 1
+
+            if j+1 <= layer_amount-layers_to_train:
+                layer.trainable = False
+
         layers[index-1] = x.output
-        
+
         return layer_amount
-                                                     
-                                                              
+
     ###################################################################################################################
     #                                             Training                                                            #
     ###################################################################################################################
 
-    def train_model(self, train, val, epochs=None, batch_size=None):
+    def train_model(self, train, val, epochs=None, batch_size=None, callbacks=None):
         # trains the model and updates its training history
         # recommended to use only through continue_training, because the epochs and batch_size are determined there
         print("Training model...")
@@ -318,7 +334,8 @@ class Model:
         initial_epoch = epochs - self.epochs[-1]
         batch_size = self.batch_size[-1]
 
-        settings = {'epochs': epochs, 'shuffle': True, 'verbose': 1, 'initial_epoch': initial_epoch}
+        settings = {'epochs': epochs, 'shuffle': True,
+                    'verbose': 1, 'initial_epoch': initial_epoch, 'callbacks': callbacks}
 
         history = self.model.fit(train, validation_data=val, **settings)
 
@@ -347,25 +364,23 @@ class Model:
 
         self.evaluation = eval
 
+    ###################################################################################################################
+    #                                             Predicting                                                          #
+    ###################################################################################################################
 
-    ###################################################################################################################
-    #                                             Predicting                                                          # 
-    ###################################################################################################################
-    
     def predict(self, data):
-        # predicts labels by using the model 
+        # predicts labels by using the model
         if isinstance(data, dict):
-        
-            predictions={}
-            
-            for key, value in data.items(): 
-                predictions[key]=list(zip(*self.model.predict(value)))
-               #predictions[key]=list(self.model.predict(value))
+
+            predictions = {}
+
+            for key, value in data.items():
+                predictions[key] = list(zip(*self.model.predict(value)))
+                # predictions[key]=list(self.model.predict(value))
             return predictions
-            
+
         else:
             return self.model.predict(data)
-            
 
     ###################################################################################################################
     #                                             Saving and Loading                                                  #
@@ -388,7 +403,8 @@ class Model:
 
         new_model = Model()
 
-        new_model.model = keras.models.load_model(os.path.join(load_path, "model.hdf5"))
+        new_model.model = keras.models.load_model(
+            os.path.join(load_path, "model.hdf5"))
 
         new_model.epochs, new_model.batch_size, new_model.history = \
             hickle.load(os.path.join(load_path, "model_data.hkl"))

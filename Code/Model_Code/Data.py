@@ -1,34 +1,38 @@
 
+import os
+import cv2
+import time
+import random
+import numpy as np
+import pandas as pd
+from tensorflow import keras
+
+try:
+    from Model_Code.DataSequence import DataSequence
+except:
+    from DataSequence import DataSequence
+
+
 import warnings
+
 
 from keras_preprocessing.image import ImageDataGenerator
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-from DataSequence import DataSequence
-
-from tensorflow import keras
-import pandas as pd
-import numpy as np
-import random
-import time
-import cv2
-import os
-
 
 class Data:
-    # used to create the data generators 
+    # used to create the data generators
 
     def __init__(self, data_path, data_file, img_settings=None):
-    
+
         self.data_path = data_path
 
         self.data_file = data_file
-        
-        self.img_settings = img_settings
-        
-        self.df = None
 
+        self.img_settings = img_settings
+
+        self.df = None
 
     ####################################################################################################################
     #                                               Loading Data                                                       #
@@ -44,14 +48,13 @@ class Data:
         elif file_extension == 'xlsx':
             self.df = pd.read_excel(self.data_file['path'])
 
-
-    def load_data(self, batch_size=32, split=(80,10,10), mode='train'):
+    def load_data(self, batch_size=32, split=(80, 10, 10), mode='train'):
 
         print("Preparing data...")
-        
+
         data = self.load_data_generators(batch_size, split, mode)
 
-        print("Data is ready!\n") 
+        print("Data is ready!\n")
 
         return data
 
@@ -59,7 +62,7 @@ class Data:
 
     def load_data_generators(self, batch_size=32, split=(80, 10, 10), mode='train'):
         # prepares the train, val and test data generators for the model
-        train_df, val_df, test_df = self.get_dataframe_split(split) 
+        train_df, val_df, test_df = self.get_dataframe_split(split)
 
         settings = {'img_data_path': self.data_path, 'used_labels': self.data_file['used_labels'], 'all_labels': self.data_file['all_labels'],
                     'data_type': self.data_file['data_type'], 'batch_size': batch_size, 'img_settings': self.img_settings}
@@ -69,26 +72,27 @@ class Data:
         val_gen = DataSequence(df=val_df, mode='val', **settings)
 
         data_dict = {'train': train_gen, 'val': val_gen}
-        
-        if len(test_df) > 0: 
-            data_dict['test'] = DataSequence(df=test_df, mode='test', **settings)
+
+        if len(test_df) > 0:
+            data_dict['test'] = DataSequence(
+                df=test_df, mode='test', **settings)
 
         return data_dict
 
     def get_labels(self, split):
-        train_df, val_df, test_df = self.get_dataframe_split(split) 
+        train_df, val_df, test_df = self.get_dataframe_split(split)
 
-        outputs_num = len(self.data_file['used_labels']) 
-            
-        labels={"train": train_df[self.data_file['used_labels']].values.tolist(),
-                "val":val_df[self.data_file['used_labels']].values.tolist()}                         
+        outputs_num = len(self.data_file['used_labels'])
 
-        if len(test_df) > 0: 
-            labels["test"] = test_df.drop(columns=["img_name"]).values.tolist()  
-                
+        labels = {"train": train_df[self.data_file['used_labels']].values.tolist(),
+                  "val": val_df[self.data_file['used_labels']].values.tolist()}
+
+        if len(test_df) > 0:
+            labels["test"] = test_df.drop(columns=["img_name"]).values.tolist()
+
         if outputs_num == 1:
-            for key,value in labels.items():
-                labels[key]=list(zip(*value))
+            for key, value in labels.items():
+                labels[key] = list(zip(*value))
 
         return labels
 
@@ -103,5 +107,3 @@ class Data:
         test_df = self.df[train_val_num:]
 
         return train_df, val_df, test_df
-
-        

@@ -8,11 +8,11 @@ from skimage import exposure
 from scipy import ndimage
 import matplotlib.pyplot as plt
 import numpy as np
-np.set_printoptions(threshold=np.inf)
 
 ########################################################################################################################
 #                                           Saving and Loading Images                                                  #
 ########################################################################################################################
+
 
 def save_image(image, save_path):
     # im = Image.fromarray((imgs[i] * 255).astype(np.uint8))
@@ -43,7 +43,7 @@ def process_image(image_path, img_res, img_preprocessing, img_channels=1):
 
     for img_prep in img_preprocessing:
 
-        if img_prep == invert_colors:
+        if img_prep == 'invert_colors':
             image = cv2.bitwise_not(image)
 
         elif img_prep == 'pad':
@@ -62,19 +62,21 @@ def process_image(image_path, img_res, img_preprocessing, img_channels=1):
             # get middle crop of the image, size : img_res X img_res
 
             shape_x, shape_y = image.shape[0:2]
-            crop_region_corner = ((shape_x - img_res) // 2, (shape_y - img_res) // 2)
+            crop_region_corner = ((shape_x - img_res) //
+                                  2, (shape_y - img_res) // 2)
 
-            image = crop_image(image, win_size=img_res, crop_corner=crop_region_corner)
-            
+            image = crop_image(image, win_size=img_res,
+                               crop_corner=crop_region_corner)
+
         elif img_prep == 'contrast streching':
-            image   = np.array(image,dtype=np.uint8)
+            image = np.array(image, dtype=np.uint8)
             p2, p98 = np.percentile(image, (2, 98))
-            image   = exposure.rescale_intensity(image, in_range=(p2, p98))
-    
+            image = exposure.rescale_intensity(image, in_range=(p2, p98))
+
         elif img_prep == 'Histogram Equalization':
-            image  = np.array(image,dtype=np.uint8)
-            image  = exposure.equalize_hist(image)
-        
+            image = np.array(image, dtype=np.uint8)
+            image = exposure.equalize_hist(image)
+
     return image
 
 
@@ -82,42 +84,42 @@ def process_image(image_path, img_res, img_preprocessing, img_channels=1):
 
 def whiten_all_images(imgs_path, img_name_list, img_channels):
     # loads all the images to the memory
-    #zca_epsilon=1e-6
-    #zca_whitening_matrix=None
+    # zca_epsilon=1e-6
+    # zca_whitening_matrix=None
 
     data = [np.array(load_image("{}/{}".format(imgs_path, img), img_channels))
-        for img in img_name_list]
+            for img in img_name_list]
 
-    mean_mask = np.zeros((150, 150,3),dtype=float)
-    std_mask  = np.zeros((150, 150,3),dtype=float)
+    mean_mask = np.zeros((150, 150, 3), dtype=float)
+    std_mask = np.zeros((150, 150, 3), dtype=float)
     images_num = len(img_name_list)
-    
+
     for image in data:
-        image=image/255
-        mean_mask+=(image/images_num)
-             
+        image = image/255
+        mean_mask += (image/images_num)
+
     for image in data:
-        image=image/255
-        image=abs(image-mean_mask)**2
-        
-        std_mask+=(image/images_num)
-        
-    std_mask=np.sqrt(std_mask)
-          
-    images=[((image/255)-mean_mask)/std_mask for image in data]
-    
-    images=[((img-img.min())/(img.max()-img.min())) for img in images]
-    
+        image = image/255
+        image = abs(image-mean_mask)**2
+
+        std_mask += (image/images_num)
+
+    std_mask = np.sqrt(std_mask)
+
+    images = [((image/255)-mean_mask)/std_mask for image in data]
+
+    images = [((img-img.min())/(img.max()-img.min())) for img in images]
+
     return images
 
    # for i,img in enumerate(images):
-        # cv2.imshow("ok!",img)  #(img*255)/np.max(img)
-        #cv2.waitKey(0)
-        #img=((img-img.min())/(img.max()-img.min()))
-        #print(i,img.min(),img.max())
-        #plt.imshow(img,cmap='gray')
-        #plt.show() 
-      
+    # cv2.imshow("ok!",img)  #(img*255)/np.max(img)
+    # cv2.waitKey(0)
+    # img=((img-img.min())/(img.max()-img.min()))
+    # print(i,img.min(),img.max())
+    # plt.imshow(img,cmap='gray')
+    # plt.show()
+
     '''
     n = len(data)
     flat_x = np.reshape(data, (n, -1))
@@ -130,16 +132,14 @@ def whiten_all_images(imgs_path, img_name_list, img_channels):
     white_x = flat_x @ zca_whitening_matrix
     data = np.reshape(white_x, data.shape)
     '''
-    
 
 
-           
 def rotate_images(imgs):
     return [rotate_image(img) for img in imgs]
-       
-    
+
+
 def rotate_image(img):
-    img = ndimage.rotate(img, randint(0,3) * 90)
+    img = ndimage.rotate(img, randint(0, 3) * 90)
     return img
 
 
@@ -160,8 +160,8 @@ def pad_image(image, size, val):
     return image
 
 
-def crop_image(image, win_size = 90, crop_corner = (0,0)):
+def crop_image(image, win_size=90, crop_corner=(0, 0)):
     # crop_corner is the left upper corner of the crop
-    crop_img = image[crop_corner[1]: crop_corner[1] + win_size, crop_corner[0]: crop_corner[0] + win_size]
+    crop_img = image[crop_corner[1]: crop_corner[1] +
+                     win_size, crop_corner[0]: crop_corner[0] + win_size]
     return crop_img
-
